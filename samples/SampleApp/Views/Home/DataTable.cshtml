@@ -1,0 +1,59 @@
+@{
+    ViewData["Title"] = "DataTable";
+}
+
+<h1>OpenDataTables demo</h1>
+<p class="text-muted">One <code>Component.InvokeAsync("DataTable", …)</code> call: server-side sort/page, a filter card, and CSP-friendly action buttons.</p>
+
+@await Component.InvokeAsync("DataTable", new DataTableViewModel
+{
+    TableId = "tblProducts",
+    AjaxUrl = Url.Action("GetData", "Products")!,
+    DefaultSortColumn = "name",
+    DefaultSortDirection = "asc",
+    PageLength = 10,
+    FilterUiMode = DataTableFilterUiMode.FilterCard,
+    ShowAdd = true,
+    ShowView = true,
+    ShowEdit = true,
+    ShowDelete = true,
+    OnAdd = "productAdd",
+    OnView = "productView",
+    OnEdit = "productEdit",
+    OnDelete = "productDelete",
+    CustomButtons =
+    [
+        new() { Text = "Export", Icon = "fas fa-file-csv", CssClass = "btn-outline-success", Placement = "top", OnClick = "productExport" }
+    ],
+    Columns =
+    [
+        new() { Data = "id", Title = "Id", IsVisible = false },
+        new() { Data = "name", Title = "Name", Filter = DataTableFilterType.Text },
+        new() { Data = "category", Title = "Category", Filter = DataTableFilterType.Select,
+                OptionsUrl = Url.Action("Categories", "Lookup")! },
+        new() { Data = "status", Title = "Status", Filter = DataTableFilterType.SelectStatic,
+                StaticOptions =
+                [
+                    new() { Id = "Active", Text = "Active" },
+                    new() { Id = "Inactive", Text = "Inactive" },
+                    new() { Id = "Discontinued", Text = "Discontinued" },
+                ] },
+        new() { Data = "price", Title = "Price", CellClass = "text-end" },
+        new() { Data = "createdAt", Title = "Created", Filter = DataTableFilterType.Date, Format = "DD MMM YYYY" },
+    ],
+})
+
+@section Scripts {
+    <script>
+        // Host-defined action handlers, resolved by name from the DataTable config (CSP-friendly).
+        function productAdd() { OpenDataTables.util.notify('info', 'Add clicked'); }
+        function productView(id) { OpenDataTables.util.notify('info', 'View #' + id); }
+        function productEdit(id) { OpenDataTables.util.notify('info', 'Edit #' + id); }
+        function productDelete(id) {
+            OpenDataTables.util.confirm({ text: 'Delete product #' + id + '?' }).then(function (ok) {
+                if (ok) OpenDataTables.util.notify('success', 'Deleted #' + id);
+            });
+        }
+        function productExport() { OpenDataTables.util.notify('info', 'Export clicked'); }
+    </script>
+}

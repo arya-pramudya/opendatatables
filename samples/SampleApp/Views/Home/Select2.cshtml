@@ -1,0 +1,95 @@
+@{
+    ViewData["Title"] = "Select2";
+}
+
+<h1>OpenSelect2 demos</h1>
+<p class="text-muted">Every dropdown below is one <code>Component.InvokeAsync("Select2", …)</code> call — no inline JS.</p>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <h5>Basic AJAX (infinite scroll)</h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "basicCategory", Name = "BasicCategory", Label = "Category",
+            AjaxUrl = Url.Action("Categories", "Lookup")!,
+            Placeholder = "Search categories…",
+        })
+    </div>
+
+    <div class="col-md-6">
+        <h5>Multiple select</h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "multiProducts", Name = "MultiProducts", Label = "Products",
+            AjaxUrl = Url.Action("Products", "Lookup")!,
+            IsMultiple = true, Placeholder = "Pick several products…",
+        })
+    </div>
+
+    <div class="col-md-6">
+        <h5>Cascade (category → subcategory)</h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "cascadeCategory", Name = "CascadeCategory", Label = "Category",
+            AjaxUrl = Url.Action("Categories", "Lookup")!,
+        })
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "cascadeSub", Name = "CascadeSub", Label = "Subcategory",
+            AjaxUrl = Url.Action("SubCategories", "Lookup")!,
+            ParentId = "cascadeCategory", Placeholder = "Choose a category first…",
+        })
+    </div>
+
+    <div class="col-md-6">
+        <h5>Preselect hook + locked (<code>PreselectKey</code>)</h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "preselCategory", Name = "PreselCategory", Label = "Category (locked to user's)",
+            AjaxUrl = Url.Action("Categories", "Lookup")!,
+            PreselectKey = "first-category",
+        })
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "preselSub", Name = "PreselSub", Label = "Subcategory (enabled despite locked parent)",
+            AjaxUrl = Url.Action("SubCategories", "Lookup")!,
+            ParentId = "preselCategory",
+        })
+    </div>
+
+    <div class="col-md-6">
+        <h5>Select All option</h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "allCategory", Name = "AllCategory", Label = "Category",
+            AjaxUrl = Url.Action("Categories", "Lookup")!,
+            CanSelectAll = true,
+        })
+    </div>
+
+    <div class="col-md-6">
+        <h5>Read-only (value kept, not changeable)</h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "roCategory", Name = "RoCategory", Label = "Category",
+            AjaxUrl = Url.Action("Categories", "Lookup")!,
+            IsReadOnly = true,
+            SelectedItems = [ new() { Id = "2", Text = "Groceries" } ],
+        })
+    </div>
+
+    <div class="col-md-6">
+        <h5>Static (no AJAX) — same component, just set <code>Items</code></h5>
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "staticStatus", Name = "StaticStatus", Label = "Status",
+            Items =
+            [
+                new() { Id = "Active", Text = "Active" },
+                new() { Id = "Inactive", Text = "Inactive" },
+                new() { Id = "Discontinued", Text = "Discontinued" },
+            ],
+            SelectedItems = [ new() { Id = "Active", Text = "Active" } ],
+        })
+    </div>
+</div>

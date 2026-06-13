@@ -1,0 +1,14 @@
+{
+  "name": "opendatatables-assets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build (minify) the static JS assets for the OpenSelect2 / OpenDataTables packages.",
+  "scripts": {
+    "build:select2": "esbuild src/OpenSelect2.AspNetCore/wwwroot/js/openselect2.js --minify --sourcemap --legal-comments=inline --outfile=src/OpenSelect2.AspNetCore/wwwroot/js/openselect2.min.js",
+    "build:datatables": "node build/minify-datatables.mjs",
+    "build": "npm run build:select2 && npm run build:datatables"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2"
+  }
+}

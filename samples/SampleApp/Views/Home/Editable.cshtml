@@ -1,0 +1,40 @@
+@{
+    ViewData["Title"] = "Editable DataTable";
+}
+
+<h1>OpenDataTables — editable demo</h1>
+<p class="text-muted">Same <code>DataTable</code> component — it becomes editable just by supplying <code>EditorConfigs</code>. Click <strong>Edit</strong> to turn Price/Status into inline editors (Manual save), then <strong>Save</strong>.</p>
+
+@await Component.InvokeAsync("DataTable", new DataTableViewModel
+{
+    TableId = "tblEdit",
+    AjaxUrl = Url.Action("GetData", "Products")!,
+    SaveAjaxUrl = Url.Action("SaveData", "Products")!,
+    SaveMode = EditableTableSaveMode.Manual,
+    DefaultSortColumn = "name",
+    PageLength = 10,
+    FilterUiMode = DataTableFilterUiMode.None,
+    ShowAdd = false,
+    ShowView = false,
+    ShowEdit = false,
+    ShowDelete = false,
+    Columns =
+    [
+        new() { Data = "id", Title = "Id", IsVisible = false },
+        new() { Data = "name", Title = "Name" },
+        new() { Data = "category", Title = "Category" },
+        new() { Data = "status", Title = "Status" },
+        new() { Data = "price", Title = "Price", CellClass = "text-end" },
+    ],
+    EditorConfigs =
+    [
+        new() { Column = "price", EditorType = DataTableEditorType.Number },
+        new() { Column = "status", EditorType = DataTableEditorType.Select2Static,
+                StaticOptions =
+                [
+                    new() { Id = "Active", Text = "Active" },
+                    new() { Id = "Inactive", Text = "Inactive" },
+                    new() { Id = "Discontinued", Text = "Discontinued" },
+                ] },
+    ],
+})

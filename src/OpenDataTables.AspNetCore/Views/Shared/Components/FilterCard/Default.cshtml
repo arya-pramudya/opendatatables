@@ -1,0 +1,98 @@
+@model FilterCardViewModel
+@{
+    Context.Items[$"{Model.TableId}-filter-form-exists"] = true;
+
+    if (Model.Columns.Any(c => c.FilterIndex.HasValue))
+        Model.Columns = Model.Columns.OrderBy(c => c.FilterIndex ?? int.MaxValue).ToList();
+
+    var visibleCols = Model.GetVisibleColumns();
+    var perRow = Model.ColumnsPerRow <= 0 ? 3 : Model.ColumnsPerRow;
+    var colWidth = 12 / perRow;
+
+    string ColWidthClass(DataTableColumnViewModel c) =>
+        !string.IsNullOrEmpty(c.CustomColumnWidthClass) ? c.CustomColumnWidthClass
+        : !string.IsNullOrEmpty(Model.CustomColumnWidthClass) ? Model.CustomColumnWidthClass
+        : $"col-md-{colWidth}";
+
+    string FilterKey(DataTableColumnViewModel c) => string.IsNullOrEmpty(c.FilterColumn) ? c.Data : c.FilterColumn!;
+}
+
+<div class="card mb-3 filter-card">
+    <div class="card-header p-2 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">@Model.Title</h5>
+        <button class="btn btn-sm btn-link text-dark p-0" type="button" data-bs-toggle="collapse"
+                data-bs-target="#@(Model.FormId)_collapse" aria-expanded="true" aria-controls="@(Model.FormId)_collapse">
+            <i class="fa-solid fa-minus" id="@(Model.FormId)_collapse_icon"></i>
+        </button>
+    </div>
+    <div class="collapse show" id="@(Model.FormId)_collapse">
+        <div class="card-body p-3">
+            <form id="@Model.FormId" class="row g-2" onsubmit="return false;">
+                @foreach (var col in visibleCols)
+                {
+                    var key = FilterKey(col);
+                    var inputId = $"{Model.TableId}_filter_{col.Data}";
+                    var label = col.Title;
+                    var parentId = string.IsNullOrEmpty(col.ParentFilterColumn) ? null : $"{Model.TableId}_filter_{col.ParentFilterColumn}";
+
+                    <div class="@ColWidthClass(col)">
+                        <label class="form-label mb-1" for="@inputId">@label</label>
+                        @switch (col.Filter)
+                        {
+                            case DataTableFilterType.Text:
+                                <input type="text" id="@inputId" data-column="@key" data-odt-filter
+                                       class="form-control form-control-sm @col.FilterClass" style="@col.FilterStyle" placeholder="@label" />
+                                break;
+
+                            case DataTableFilterType.Date:
+                                <input type="date" id="@inputId" data-column="@key" data-odt-filter
+                                       class="form-control form-control-sm @col.FilterClass" style="@col.FilterStyle" />
+                                break;
+
+                            case DataTableFilterType.Select:
+                            case DataTableFilterType.SelectMultiple:
+                                @await Component.InvokeAsync("Select2", new Select2ViewModel
+                                {
+                                    Id = inputId,
+                                    Name = $"{col.Data}Filter",
+                                    AjaxUrl = col.OptionsUrl,
+                                    Placeholder = $"Select {label}",
+                                    IsMultiple = col.Filter == DataTableFilterType.SelectMultiple,
+                                    SelectedItems = col.SelectedItems,
+                                    IsDisabled = col.IsDisabled,
+                                    ForceDisabled = col.IsDisabled,
+                                    Limit = 50,
+                                    ParentId = parentId,
+                                    ExtraParams = col.OptionsUrlParameters,
+                                    ExtraAttributes = new Dictionary<string, string> { ["data-column"] = key, ["data-odt-filter"] = "" }
+                                })
+                                break;
+
+                            case DataTableFilterType.SelectStatic:
+                                @await Component.InvokeAsync("Select2", new Select2ViewModel
+                                {
+                                    Id = inputId,
+                                    Name = $"{col.Data}Filter",
+                                    Items = col.StaticOptions ?? new List<Select2ListItem>(),
+                                    SelectedItems = col.SelectedItems,
+                                    Placeholder = $"Select {label}",
+                                    ExtraAttributes = new Dictionary<string, string> { ["data-column"] = key, ["data-odt-filter"] = "" }
+                                })
+                                break;
+                        }
+                    </div>
+                }
+                <div class="col-12 mt-2 d-flex justify-content-end">
+                    <button type="button" id="@Model.TableId-search-btn" class="btn btn-primary btn-sm me-2">
+                        <i class="fa-solid fa-search"></i> Search
+                    </button>
+                    <button type="button" id="@Model.TableId-reset-btn" class="btn btn-secondary btn-sm">
+                        <i class="fa-solid fa-rotate"></i> Reset Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" data-component="FilterCard">@Json.Serialize(new { tableId = Model.TableId, formId = Model.FormId })</script>

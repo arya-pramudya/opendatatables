@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>OpenDataTables.AspNetCore</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>OpenDataTables.AspNetCore</PackageId>
+    <Version>0.1.0-preview.1</Version>
+    <Description>Server-side jQuery DataTables for ASP.NET Core MVC: strongly-typed C# config rendered by a ViewComponent, with filters, a filter card, cascading Select2 dropdowns, child rows, custom buttons, an editable mode, and sort/page helpers. Zero manual JS init.</Description>
+    <PackageTags>aspnetcore;mvc;datatables;datatable;grid;ajax;razor-class-library;viewcomponent</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- For the async ToDataTableResponseAsync materializer (provider-agnostic, no DB provider). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenSelect2.AspNetCore\OpenSelect2.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

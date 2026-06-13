@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>OpenSelect2.AspNetCore</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>OpenSelect2.AspNetCore</PackageId>
+    <Version>0.1.0-preview.1</Version>
+    <Description>Server-configured AJAX Select2 dropdowns for ASP.NET Core MVC: infinite-scroll paging, cascading parent/child chains, pre-selection, read-only semantics, and a controller response helper. Renders via a ViewComponent with zero manual JS init.</Description>
+    <PackageTags>aspnetcore;mvc;select2;dropdown;ajax;razor-class-library;viewcomponent</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- For the async ToSelect2ResultAsync materializer (provider-agnostic, no DB provider). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

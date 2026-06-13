@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  pack-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build static assets (esbuild minify)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build & test
+        run: |
+          dotnet build OpenDataTables.sln -c Release
+          dotnet test tests/OpenDataTables.Tests/OpenDataTables.Tests.csproj -c Release --no-build
+
+      - name: Pack
+        run: |
+          dotnet pack src/OpenSelect2.AspNetCore/OpenSelect2.AspNetCore.csproj   -c Release -o artifacts -p:Version=${{ steps.ver.outputs.version }}
+          dotnet pack src/OpenDataTables.AspNetCore/OpenDataTables.AspNetCore.csproj -c Release -o artifacts -p:Version=${{ steps.ver.outputs.version }}
+
+      # Publish order matters: OpenSelect2 first (OpenDataTables references it).
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push "artifacts/OpenSelect2.AspNetCore.*.nupkg"   --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          dotnet nuget push "artifacts/OpenDataTables.AspNetCore.*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.nupkg
+          generate_release_notes: true

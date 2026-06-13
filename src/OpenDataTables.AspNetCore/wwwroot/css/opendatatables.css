@@ -1,0 +1,22 @@
+/* OpenDataTables.AspNetCore — minimal component styles. */
+.odt-nowrap { white-space: nowrap; }
+
+.odt-details-control { cursor: pointer; text-align: center; }
+.odt-details-toggle {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  line-height: 16px;
+  text-align: center;
+  border: 1px solid #adb5bd;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.odt-child-table { margin: 0.5rem 0; }
+.odt-rownum { color: #6c757d; }
+
+.odt-rotate-icon { transition: transform 0.3s ease-in-out; }
+.odt-rotate-icon.collapsed { transform: rotate(90deg); }
+
+.odt-top { margin-bottom: 0.5rem; }

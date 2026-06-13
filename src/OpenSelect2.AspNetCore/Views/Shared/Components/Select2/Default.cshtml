@@ -1,0 +1,74 @@
+@model Select2ViewModel
+@{
+    var isStatic = Model.Items is { Count: > 0 };
+    var cssClasses = "w-100 select2" + (string.IsNullOrEmpty(Model.CssClass) ? string.Empty : " " + Model.CssClass);
+    var selectedIds = new HashSet<string>(Model.SelectedItems?.Select(s => s.Id) ?? Enumerable.Empty<string>());
+
+    var config = new
+    {
+        id = Model.Id,
+        ajaxUrl = Model.AjaxUrl,
+        placeholder = Model.Placeholder,
+        limit = Model.Limit,
+        parentId = Model.ParentId,
+        extraParams = Model.ExtraParams,
+        extraParamsHTML = Model.ExtraParamsHTML,
+        canSelectAll = Model.CanSelectAll,
+        enableChildrenIfPreSelected = Model.EnableChildrenIfPreSelected,
+        forceDisabled = Model.ForceDisabled,
+        isReadOnly = Model.IsReadOnly,
+        multiple = Model.IsMultiple,
+        isStatic = isStatic
+    };
+}
+
+@if (!string.IsNullOrEmpty(Model.Label))
+{
+    <label for="@Model.Id" class="form-label col-12">
+        @Model.Label
+        @if (Model.IsRequired)
+        {
+            <span class="text-danger">*</span>
+        }
+    </label>
+}
+
+<select id="@Model.Id"
+        name="@Model.Name"
+        class="@cssClasses"
+        style="width: 100%;"
+        data-parent-id="@Model.ParentId"
+        @if (Model.ExtraAttributes != null)
+        {
+            foreach (var attr in Model.ExtraAttributes)
+            {
+                @Html.Raw($"{attr.Key}=\"{attr.Value}\" ")
+            }
+        }
+        @(Model.IsMultiple ? "multiple" : "")
+        @(Model.IsRequired ? "required" : "")
+        @(Model.IsDisabled ? "disabled" : "")>
+    @* Empty option so a single-select can show the placeholder, be cleared, and not auto-pick the first item. *@
+    @if (!Model.IsMultiple)
+    {
+        <option></option>
+    }
+    @if (isStatic)
+    {
+        foreach (var item in Model.Items!)
+        {
+            var selected = selectedIds.Contains(item.Id) || item.Selected;
+            <option value="@item.Id" selected="@(selected ? "selected" : null)">@item.Text</option>
+        }
+    }
+    else if (Model.SelectedItems != null)
+    {
+        foreach (var item in Model.SelectedItems)
+        {
+            <option value="@item.Id" selected="selected">@item.Text</option>
+        }
+    }
+</select>
+
+@* CSP-friendly: behavior lives in openselect2.js, which scans for this config block. *@
+<script type="application/json" data-component="Select2">@Json.Serialize(config)</script>

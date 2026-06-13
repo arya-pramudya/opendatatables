@@ -1,0 +1,129 @@
+@model DataTableViewModel
+@{
+    // Keep the thead order and the JS column order identical.
+    if (Model.Columns.Any(c => c.TableIndex.HasValue))
+        Model.Columns = Model.Columns.OrderBy(c => c.TableIndex ?? int.MaxValue).ToList();
+
+    var hasChildRows = Model.HasChildRows && (Model.ChildColumns?.Any() ?? false);
+    var hasActions = Model.ShowView || Model.ShowEdit || Model.ShowDelete
+        || (Model.CustomButtons?.Any(b => b.Placement == "row") ?? false);
+
+    // Editable when editor configs are present (the grid is one component; editing is a mode).
+    var isEditable = Model.EditorConfigs?.Any() ?? false;
+
+    var renderFilterCard = Model.FilterUiMode == DataTableFilterUiMode.FilterCard
+        && Model.Columns.Any(c => c.Filter != DataTableFilterType.None);
+
+    var config = new
+    {
+        tableId = Model.TableId,
+        ajaxUrl = Model.AjaxUrl,
+        columns = Model.Columns,
+        defaultSortColumn = Model.DefaultSortColumn,
+        defaultSortDirection = Model.DefaultSortDirection,
+        filterUiMode = Model.FilterUiMode.ToString().ToLowerInvariant(),
+        showAdd = Model.ShowAdd,
+        showEdit = Model.ShowEdit,
+        showDelete = Model.ShowDelete,
+        showView = Model.ShowView,
+        hasNumbering = Model.HasNumbering,
+        pageLength = Model.PageLength,
+        customButtons = Model.CustomButtons,
+        hasChildRows = hasChildRows,
+        childAjaxUrl = Model.ChildAjaxUrl,
+        childColumns = Model.ChildColumns,
+        childRowCallback = Model.ChildRowCallback,
+        childCustomParameters = Model.ChildCustomParameters,
+        rowCallback = Model.RowCallback,
+        customParameters = Model.CustomParameters,
+        dynamicValueSources = Model.DynamicValueSources,
+        loadTrigger = Model.LoadTrigger.ToString().ToLowerInvariant(),
+        triggerSelector = Model.TriggerSelector,
+        triggerEvent = Model.TriggerEvent,
+        customEditText = Model.CustomEditText,
+        customDeleteText = Model.CustomDeleteText,
+        onAdd = Model.OnAdd,
+        onView = Model.OnView,
+        onEdit = Model.OnEdit,
+        onDelete = Model.OnDelete,
+        // Editable mode (active when editorConfigs is non-empty).
+        editorConfigs = Model.EditorConfigs,
+        saveAjaxUrl = Model.SaveAjaxUrl,
+        saveMode = Model.SaveMode.ToString(),
+        onSave = Model.OnSave
+    };
+}
+
+@if (renderFilterCard)
+{
+    @await Component.InvokeAsync("FilterCard", Model.ToFilterCard())
+}
+
+<div class="card">
+    <div class="card-body p-3">
+        @if (Model.ShowAdd || isEditable || (Model.CustomButtons?.Any(b => b.Placement == "top") ?? false))
+        {
+            <div class="mb-2 odt-toolbar">
+                @if (Model.ShowAdd)
+                {
+                    <button type="button" class="btn btn-success btn-sm" data-odt-action="add" data-odt-table="@Model.TableId">
+                        <i class="fas fa-plus"></i> @(string.IsNullOrEmpty(Model.CustomAddText) ? "Add" : Model.CustomAddText)
+                    </button>
+                }
+                @if (isEditable)
+                {
+                    <button type="button" id="@Model.TableId-edit-mode-btn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-edit"></i> @(string.IsNullOrEmpty(Model.CustomEditText) ? "Edit" : Model.CustomEditText)
+                    </button>
+                    <button type="button" id="@Model.TableId-save-btn" class="btn btn-success btn-sm" style="display:none;">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button type="button" id="@Model.TableId-cancel-btn" class="btn btn-secondary btn-sm" style="display:none;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                }
+                @if (Model.CustomButtons != null)
+                {
+                    foreach (var btn in Model.CustomButtons.Where(b => b.Placement == "top"))
+                    {
+                        <button type="button" id="@btn.Id" class="btn btn-sm @btn.CssClass"
+                                data-odt-action="custom" data-odt-handler="@btn.OnClick" data-odt-table="@Model.TableId"
+                                style="@btn.Style" title="@(btn.Title ?? btn.Text)">
+                            @if (!string.IsNullOrEmpty(btn.Icon))
+                            {
+                                <i class="@btn.Icon"></i>
+                            }
+                            @btn.Text
+                        </button>
+                    }
+                }
+            </div>
+        }
+
+        <table id="@Model.TableId" class="table table-bordered table-hover table-sm align-middle w-100" style="width:100%">
+            <thead>
+                <tr>
+                    @if (hasChildRows)
+                    {
+                        <th class="odt-details-control" style="width:32px;"></th>
+                    }
+                    @if (Model.HasNumbering)
+                    {
+                        <th style="width:40px;">#</th>
+                    }
+                    @foreach (var col in Model.Columns)
+                    {
+                        <th>@col.Title</th>
+                    }
+                    @if (hasActions)
+                    {
+                        <th class="odt-actions">Actions</th>
+                    }
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+
+@* CSP-friendly: behavior lives in opendatatables-*.js, which scans for this config block. *@
+<script type="application/json" data-component="DataTable">@Json.Serialize(config)</script>

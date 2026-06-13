@@ -1,0 +1,35 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+indent_size = 4
+dotnet_sort_system_directives_first = true
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+[*.{js,json,jsonc,css,cshtml,html,yml,yaml}]
+indent_size = 2
+
+[*.{csproj,props,targets}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Test code: underscored names, inline constant arrays in asserts, per-call serializer options,
+# and EF-translated ToString() are all idiomatic and not worth the analyzer noise.
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1869.severity = none
+
+# SampleApp uses EF-translated `.ToString()` in LINQ projections, where the CA1305
+# IFormatProvider overload is not translatable. Demo code — not worth the noise.
+[samples/**.cs]
+dotnet_diagnostic.CA1305.severity = none

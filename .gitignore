@@ -1,0 +1,33 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+
+# Rider / VS
+.vs/
+.idea/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+local-feed/
+
+# Node / esbuild
+node_modules/
+npm-debug.log*
+
+# Test / Playwright
+[Tt]est[Rr]esults/
+playwright-report/
+.playwright/
+
+# OS
+.DS_Store
+Thumbs.db
