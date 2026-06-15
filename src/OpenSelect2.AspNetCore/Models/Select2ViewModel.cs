@@ -90,4 +90,13 @@ public class Select2ViewModel
 
     /// <summary>Additional raw HTML attributes to emit on the select element (e.g. <c>data-column</c>).</summary>
     public Dictionary<string, string>? ExtraAttributes { get; set; }
+
+    /// <summary>
+    /// Raw select2 options merged last over the computed settings (escape hatch for any option the C#
+    /// model does not yet expose). Nested objects are deep-merged; array values replace the computed
+    /// array wholesale rather than merging element-by-element. Function-valued options (e.g.
+    /// <c>templateResult</c>) must be registered via
+    /// <c>OpenSelect2.on(id, { templateResult, templateSelection, beforeInit })</c> from host JS.
+    /// </summary>
+    public Dictionary<string, object?>? Select2Options { get; set; }
 }

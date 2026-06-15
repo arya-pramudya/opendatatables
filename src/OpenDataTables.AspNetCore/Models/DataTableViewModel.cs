@@ -124,4 +124,42 @@ public class DataTableViewModel
 
     /// <summary>Custom parameters for child AJAX requests (supports <c>row.</c> token values).</summary>
     public Dictionary<string, string>? ChildCustomParameters { get; set; }
+
+    /// <summary>
+    /// Raw datatables.net options merged last over the computed options (escape hatch for any option the
+    /// C# model does not yet expose). Nested objects are deep-merged; array values (e.g. <c>order</c>,
+    /// <c>lengthMenu</c>) replace the computed array wholesale rather than merging element-by-element.
+    /// Function-valued options must be registered via <c>OpenDataTables.on(tableId, { beforeInit })</c>
+    /// from host JS.
+    /// </summary>
+    public Dictionary<string, object?>? DataTableOptions { get; set; }
+
+    /// <summary>
+    /// Validates that the configuration uses only supported features, throwing
+    /// <see cref="DataTableConfigurationException"/> (naming the offending property) when it does not.
+    /// Hosts can call this right after building the model to fail fast at configuration time with a clear
+    /// message; the <c>DataTable</c> ViewComponent also calls it before rendering. Does not mutate the model.
+    /// </summary>
+    public void Validate()
+    {
+        if (FilterUiMode is DataTableFilterUiMode.Inline
+                or DataTableFilterUiMode.Top
+                or DataTableFilterUiMode.Mixed)
+        {
+            throw new DataTableConfigurationException(
+                nameof(FilterUiMode),
+                $"DataTableFilterUiMode.{FilterUiMode} is not implemented yet. " +
+                "Use DataTableFilterUiMode.FilterCard or DataTableFilterUiMode.None.");
+        }
+
+        // A Range filter only renders when a filter UI is shown, so it can only bite then.
+        if (FilterUiMode != DataTableFilterUiMode.None
+            && (Columns ?? new()).Any(c => c?.Filter == DataTableFilterType.Range))
+        {
+            throw new DataTableConfigurationException(
+                nameof(Columns),
+                "DataTableFilterType.Range is not implemented yet. Use Text/Date/Select/SelectStatic, " +
+                "or send a range as two server-side parameters.");
+        }
+    }
 }

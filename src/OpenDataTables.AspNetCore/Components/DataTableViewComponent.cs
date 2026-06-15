@@ -16,10 +16,15 @@ public class DataTableViewComponent : ViewComponent
     {
         ArgumentNullException.ThrowIfNull(config);
 
+        // Guard before any use below derefs Columns (the view, ToFilterCard).
+        config.Columns ??= new List<DataTableColumnViewModel>();
+
+        // Reject unsupported feature combinations with a clear, typed, property-named error. Hosts can call
+        // config.Validate() earlier (at configuration time) to surface this before the render pipeline.
+        config.Validate();
+
         if (string.IsNullOrWhiteSpace(config.TableId))
             config.TableId = $"dt_{Guid.NewGuid().ToString("N")[..8]}";
-
-        config.Columns ??= new List<DataTableColumnViewModel>();
 
         // Generic, host-implemented filter preselection (replaces the old claim-based logic).
         var preselector = HttpContext.RequestServices.GetService<IDataTableFilterPreselector>();

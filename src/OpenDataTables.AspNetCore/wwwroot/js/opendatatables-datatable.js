@@ -38,11 +38,40 @@
     return null;
   }
 
+  // A window global is only callable by name when it's a plain identifier and not a dangerous built-in.
+  // Shared by the row-button resolver (resolveGlobalHandler) and the named-fn resolver (resolveNamedFn,
+  // used for formatters / rowCallback / childRowCallback) so neither path can invoke e.g. window.open,
+  // window.fetch, or window.print by a coincidentally-matching config name.
+  var IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+  var UNSAFE_GLOBAL_RE = /^(eval|Function|fetch|XMLHttpRequest|location|open|close|print|find|stop|focus|blur|document|window|globalThis|self|top|parent|navigator|alert|confirm|prompt|setTimeout|setInterval|setImmediate|requestAnimationFrame|queueMicrotask|Reflect|Proxy|importScripts|WebSocket|Worker|SharedWorker)$/;
+
+  function safeWindowFn(name) {
+    if (!name || typeof name !== 'string' || !IDENTIFIER_RE.test(name)) return null;
+    if (UNSAFE_GLOBAL_RE.test(name)) return null;
+    return typeof window[name] === 'function' ? window[name] : null;
+  }
+
+  // Last-resort lookup of a row-button handler by name on window, for hosts not using OpenDataTables.on.
+  function resolveGlobalHandler(name) { return safeWindowFn(name); }
+
   function call(tableId, name, args) {
     var fn = resolveHandler(tableId, name);
     if (fn) { try { fn.apply(null, args || []); } catch (e) { console.error('[OpenDataTables] handler ' + name + ' threw', e); } return true; }
     return false;
   }
+
+  // Resolve a named function: prefer the per-table registry (OpenDataTables.on), then a window global
+  // (back-compat). Lets formatters / row callbacks be registered without polluting the global namespace.
+  function resolveNamedFn(tableId, name) {
+    if (!name || typeof name !== 'string') return null;
+    var reg = registry[tableId];
+    if (reg && reg.handlers && typeof reg.handlers[name] === 'function') return reg.handlers[name];
+    return safeWindowFn(name);
+  }
+
+  // Array-replacing, prototype-pollution-safe deep merge. Defined once in opendatatables-core.js
+  // (util.mergeOptions); aliased here for the escape-hatch call sites below.
+  var mergeOptions = util.mergeOptions;
 
   function rowId(row) { return row && (row.id != null ? row.id : row.Id); }
 
@@ -67,6 +96,8 @@
     cols.forEach(function (col) {
       var key = col.data;
       var editor = editors && editors[key];
+      // Resolve the named formatter once per column (not per cell render) — it's stable after init.
+      var fmtFn = col.format ? resolveNamedFn(tableId, col.format) : null;
       defs.push({
         data: key,
         name: key,
@@ -79,8 +110,9 @@
           // Inline editor when this column is editable and the table is in edit mode.
           if (editor && isEditing(tableId)) return renderEditor(editor, data == null ? '' : data, rowId(row));
           if (data != null && col.format) {
-            // Host-defined global formatter takes precedence; else the built-in date formatter.
-            if (typeof window[col.format] === 'function') { try { return window[col.format](data); } catch (e) { /* noop */ } }
+            // A registered/global formatter (resolved once above) takes precedence; else the built-in
+            // date formatter interprets `format` as a moment-style token string.
+            if (fmtFn) { try { return fmtFn(data); } catch (e) { /* noop */ } }
             if (typeof data === 'string' && !isNaN(Date.parse(data))) return util.formatDateIntl(data, col.format);
           }
           return data;
@@ -97,26 +129,39 @@
     return defs;
   }
 
+  // A custom button's placement defaults to 'row' when absent (matches the C# model default), so a
+  // host that builds config directly in JS without a placement still gets a row button.
+  function buttonPlacement(b) { return b.placement || 'row'; }
+
+  function hasButtonAt(config, placement) {
+    return Array.isArray(config.customButtons) &&
+      config.customButtons.some(function (b) { return buttonPlacement(b) === placement; });
+  }
+
   function hasActionColumn(config) {
-    return config.showView || config.showEdit || config.showDelete ||
-      (Array.isArray(config.customButtons) && config.customButtons.some(function (b) { return (b.placement || 'row') === 'row'; }));
+    return config.showView || config.showEdit || config.showDelete || hasButtonAt(config, 'row');
   }
 
   function renderActions(config, row) {
-    var loc = (ODT.config && ODT.config.locale) || {};
+    var cfg = ODT.config || {};
+    var loc = cfg.locale || {};
+    // Theming hooks: hosts not using Bootstrap/Font Awesome can override icons + button classes via
+    // ODT.config.icons / ODT.config.actionClasses (see opendatatables-core.js defaults).
+    var icons = cfg.icons || {};
+    var aCss = cfg.actionClasses || {};
     var id = rowId(row);
-    var html = '<div class="btn-group btn-group-sm" role="group">';
-    if (config.showView) html += actionBtn('view', id, 'btn-info', 'fas fa-eye', loc.view || 'View');
-    if (config.showEdit) html += actionBtn('edit', id, 'btn-primary', 'fas fa-edit', config.customEditText || loc.edit || 'Edit');
-    if (config.showDelete) html += actionBtn('delete', id, 'btn-danger', 'fas fa-trash', config.customDeleteText || loc.delete || 'Delete');
+    var html = '<div class="' + (aCss.group || 'btn-group btn-group-sm') + '" role="group">';
+    if (config.showView) html += actionBtn('view', id, aCss.view || 'btn-info', icons.view || 'fas fa-eye', loc.view || 'View');
+    if (config.showEdit) html += actionBtn('edit', id, aCss.edit || 'btn-primary', icons.edit || 'fas fa-edit', config.customEditText || loc.edit || 'Edit');
+    if (config.showDelete) html += actionBtn('delete', id, aCss.delete || 'btn-danger', icons.delete || 'fas fa-trash', config.customDeleteText || loc.delete || 'Delete');
 
     if (Array.isArray(config.customButtons)) {
       config.customButtons.forEach(function (btn) {
-        if ((btn.placement || 'row') !== 'row') return;
-        var icon = btn.icon ? '<i class="' + btn.icon + '"></i> ' : '';
+        if (buttonPlacement(btn) !== 'row') return;
+        var icon = btn.icon ? '<i class="' + util.escapeHtml(btn.icon) + '"></i> ' : '';
         var rowData = util.escapeHtml(JSON.stringify(row));
-        html += '<button type="button" id="' + (btn.id || '') + '" class="btn ' + (btn.cssClass || 'btn-secondary') + ' btn-sm me-1"' +
-          (btn.style ? ' style="' + btn.style + '"' : '') +
+        html += '<button type="button" id="' + util.escapeHtml(btn.id || '') + '" class="btn ' + util.escapeHtml(btn.cssClass || 'btn-secondary') + ' btn-sm me-1"' +
+          (btn.style ? ' style="' + util.escapeHtml(btn.style) + '"' : '') +
           ' data-odt-action="custom" data-odt-handler="' + util.escapeHtml(btn.onClick || '') + '"' +
           ' data-odt-row="' + rowData + '" title="' + util.escapeHtml(btn.title || btn.text || '') + '">' + icon + util.escapeHtml(btn.text || '') + '</button>';
       });
@@ -125,12 +170,13 @@
   }
 
   function actionBtn(action, id, css, icon, title) {
-    return '<button type="button" class="btn ' + css + ' btn-sm me-1" data-odt-action="' + action + '" data-id="' + util.escapeHtml(id) +
-      '" title="' + util.escapeHtml(title) + '"><i class="' + icon + '"></i></button>';
+    // css/icon come from ODT.config theming hooks; escape them too so a misconfigured theme can't inject HTML.
+    return '<button type="button" class="btn ' + util.escapeHtml(css) + ' btn-sm me-1" data-odt-action="' + action + '" data-id="' + util.escapeHtml(id) +
+      '" title="' + util.escapeHtml(title) + '"><i class="' + util.escapeHtml(icon) + '"></i></button>';
   }
 
   function buildDom(config) {
-    var hasTop = config.showAdd || (Array.isArray(config.customButtons) && config.customButtons.some(function (b) { return (b.placement || 'row') === 'top'; }));
+    var hasTop = config.showAdd || hasButtonAt(config, 'top');
     return (hasTop ? '<"odt-top">' : '') + 'rt<"odt-bottom d-flex justify-content-between align-items-center"lpi>';
   }
 
@@ -141,13 +187,24 @@
     var colIdx = order.column != null ? order.column : 0;
     var col = (d.columns && d.columns[colIdx]) || {};
 
+    // B5: send the full sort list; keep the scalar fields in sync with order[0] for back-compat.
+    var sortOrders = [];
+    if (Array.isArray(d.order)) {
+      d.order.forEach(function (o) {
+        var c = (d.columns && d.columns[o.column]) || {};
+        var colName = c.data || c.name || '';
+        if (colName) sortOrders.push({ Column: colName, Direction: o.dir || 'asc' });
+      });
+    }
+
     var mapped = {
       Draw: String(d.draw),
       Start: d.start,
       Length: d.length,
       SortColumnIndex: colIdx,
       SortColumnName: col.data || col.name || '',
-      SortDirection: order.dir || 'asc'
+      SortDirection: order.dir || 'asc',
+      SortOrders: sortOrders
     };
 
     DataTable.Filters.getFilterData(tableId, mapped);
@@ -213,7 +270,11 @@
       if (action === 'custom') {
         var handlerName = $btn.data('odt-handler');
         var row = parseRow($btn.attr('data-odt-row'));
-        if (typeof window[handlerName] === 'function') window[handlerName](row);
+        // Prefer registry (OpenDataTables.on); fall back to a safe window global (see resolveGlobalHandler).
+        var customFn = resolveHandler(tableId, handlerName) || resolveGlobalHandler(handlerName);
+        // Swallow + log (consistent with every other handler path); a throwing handler must not break
+        // delegated event dispatch for other buttons.
+        if (customFn) { try { customFn(row); } catch (e) { console.error('[OpenDataTables] custom handler ' + handlerName + ' threw', e); } }
         return;
       }
       var id = $btn.data('id');
@@ -245,11 +306,11 @@
         config.childColumns.map(function (c) { return '<th>' + util.escapeHtml(c.title) + '</th>'; }).join('') +
         '</tr></thead></table>').show();
       tr.addClass('odt-shown'); $(this).find('.odt-details-toggle').text('−');
-      initChildTable(childId, config, row.data());
+      initChildTable(tableId, childId, config, row.data());
     });
   }
 
-  function initChildTable(childId, config, parentRow) {
+  function initChildTable(tableId, childId, config, parentRow) {
     var params = {};
     if (config.childCustomParameters) {
       $.each(config.childCustomParameters, function (k, v) {
@@ -270,8 +331,9 @@
           } };
       })
     });
-    if (config.childRowCallback && typeof window[config.childRowCallback] === 'function') {
-      try { window[config.childRowCallback](childId, parentRow, childApi, config); } catch (e) { /* noop */ }
+    var childCb = resolveNamedFn(tableId, config.childRowCallback);
+    if (childCb) {
+      try { childCb(childId, parentRow, childApi, config); } catch (e) { /* noop */ }
     }
   }
 
@@ -428,6 +490,9 @@
     var loadTrigger = (config.loadTrigger || 'immediate').toLowerCase();
     var deferLoad = loadTrigger !== 'immediate';
 
+    // Resolve the row callback once at init rather than per row on every draw.
+    var rowCbFn = resolveNamedFn(tableId, config.rowCallback);
+
     var options = {
       processing: true,
       serverSide: true,
@@ -444,11 +509,34 @@
         if (config.hasNumbering) { try { applyNumbering(this.api()); } catch (e) { /* noop */ } }
       },
       rowCallback: function (rowEl, data) {
-        if (config.rowCallback && typeof window[config.rowCallback] === 'function') {
-          try { window[config.rowCallback](rowEl, data); } catch (e) { /* noop */ }
-        }
+        if (rowCbFn) { try { rowCbFn(rowEl, data); } catch (e) { /* noop */ } }
       }
     };
+
+    // B0 escape hatch: merge raw datatables.net options, then allow host JS to patch via beforeInit.
+    // mergeOptions replaces arrays wholesale (so `columns`/`order`/`lengthMenu` override cleanly) and is
+    // prototype-pollution-safe. The structural ajax.data (DataTableQueryViewModel mapping) and ajax.error
+    // are re-asserted after BOTH the merge and a beforeInit replacement, so neither can drop them; host
+    // ajax sub-keys (url, headers, …) still merge through. A non-object `ajax` is normalized (never throws).
+    var builtinAjaxData = options.ajax.data;
+    var builtinAjaxError = options.ajax.error;
+    function protectAjax(opts) {
+      if (!opts.ajax || typeof opts.ajax !== 'object' || Array.isArray(opts.ajax)) opts.ajax = {};
+      opts.ajax.data = builtinAjaxData;
+      opts.ajax.error = builtinAjaxError;
+      return opts;
+    }
+
+    if (config.extraOptions) {
+      mergeOptions(options, config.extraOptions);
+      protectAjax(options);
+    }
+    var reg0 = registry[tableId];
+    if (reg0 && reg0.handlers && typeof reg0.handlers.beforeInit === 'function') {
+      var patched = reg0.handlers.beforeInit(options);
+      if (patched) options = patched;
+      protectAjax(options);
+    }
 
     var api = $table.DataTable(options);
     registry[tableId].api = api;

@@ -13,7 +13,7 @@ Thanks for your interest! This is a monorepo with two packages that ship in lock
 2. Run `dotnet format` before committing.
 3. The two packages version together: **`OpenSelect2.AspNetCore` publishes first**, then
    `OpenDataTables.AspNetCore` (which depends on it).
-4. Front-end behavior changes must be demoed in `samples/SampleApp` and covered by a Playwright test.
+4. Front-end behavior changes must be demoed in `samples/SampleApp` (end-to-end browser tests are planned, not yet present).
 
 ## Coupling rules (important)
 

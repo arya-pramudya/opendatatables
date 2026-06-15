@@ -85,6 +85,66 @@ public class DataTableQueryExtensionsTests
         Assert.Equal("alpha", result.data!.First().Name);
     }
 
+    private sealed record NullableRow(int Id, DateTime? When);
+
+    [Fact]
+    public void ToDataTableResponse_sorts_nullable_value_column_with_nulls_without_throwing()
+    {
+        var rows = new List<NullableRow>
+        {
+            new(1, new DateTime(2024, 1, 2)),
+            new(2, null),
+            new(3, new DateTime(2024, 1, 1)),
+        };
+
+        // A nullable value-type column with nulls must not crash the in-memory sort: the key selector
+        // must not coalesce null to "" (which mixes DateTime and string and throws in Comparer<object>).
+        var result = rows.ToDataTableResponse(Query("when", "asc"), recordsTotal: 3);
+
+        // Nulls sort first in ascending order, then the real dates in chronological order.
+        Assert.Equal(new[] { 2, 3, 1 }, result.data!.Select(r => r.Id));
+    }
+
+    [Fact]
+    public void ToDataTableResponse_honors_explicit_id_primary_in_multi_column_sort()
+    {
+        // A genuine 2-column sort starting on Id is an explicit user choice: it must NOT be rewritten to
+        // the default column the way a lone implicit Id sort is. Id is unique here, so Id-desc fully
+        // determines the order (the secondary Name sort is a tie-breaker only).
+        var query = Query("id", "asc");
+        query.SortOrders =
+        [
+            new SortDescriptor { Column = "Id", Direction = "desc" },
+            new SortDescriptor { Column = "Name", Direction = "asc" },
+        ];
+
+        var result = Rows().ToDataTableResponse(query, 4, defaultSortColumn: "name", defaultSortDirection: "asc");
+
+        Assert.Equal(new[] { 4, 3, 2, 1 }, result.data!.Select(r => r.Id));
+    }
+
+    [Fact]
+    public void ToDataTableResponse_sorts_explicit_real_column_not_in_selectors_by_that_column()
+    {
+        // A columnSelectors map that maps the DEFAULT column must not hijack the sort of a different,
+        // explicitly-requested real property. Regression: the in-memory path used to fall back to the
+        // default column's selector (unlike the IQueryable path) whenever the requested column had no key.
+        var rows = new List<Row>
+        {
+            new(1, "alpha", 40m),
+            new(2, "bravo", 30m),
+            new(3, "charlie", 20m),
+            new(4, "delta", 10m),
+        };
+        var selectors = new Dictionary<string, Func<Row, object?>> { ["name"] = r => r.Name };
+
+        // Sort by "price" (a real property, not a selector key) with the default column mapped to "name".
+        var result = rows.ToDataTableResponse(Query("price", "asc"), 4, selectors, defaultSortColumn: "name");
+
+        // Price ascending → 10,20,30,40 → Ids 4,3,2,1. (The old fallback would sort by name → 1,2,3,4.)
+        Assert.Equal(new[] { 4, 3, 2, 1 }, result.data!.Select(r => r.Id));
+    }
+
     [Fact]
     public void ToDataTableResponse_uses_column_selector_override()
     {

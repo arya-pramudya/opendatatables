@@ -50,7 +50,9 @@
         editorConfigs = Model.EditorConfigs,
         saveAjaxUrl = Model.SaveAjaxUrl,
         saveMode = Model.SaveMode.ToString(),
-        onSave = Model.OnSave
+        onSave = Model.OnSave,
+        // Escape hatch: merged last over computed options (plain values only; use beforeInit for functions).
+        extraOptions = Model.DataTableOptions
     };
 }
 

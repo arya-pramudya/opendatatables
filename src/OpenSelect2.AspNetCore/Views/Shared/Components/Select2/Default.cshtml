@@ -18,7 +18,9 @@
         forceDisabled = Model.ForceDisabled,
         isReadOnly = Model.IsReadOnly,
         multiple = Model.IsMultiple,
-        isStatic = isStatic
+        isStatic = isStatic,
+        // Escape hatch: merged last over computed select2 settings (plain values; use beforeInit for functions).
+        select2Options = Model.Select2Options
     };
 }
 
@@ -42,7 +44,12 @@
         {
             foreach (var attr in Model.ExtraAttributes)
             {
-                @Html.Raw($"{attr.Key}=\"{attr.Value}\" ")
+                @* Safe token check: reject event-handler names (on*) and anything non-identifier. *@
+                if (System.Text.RegularExpressions.Regex.IsMatch(attr.Key, @"^[A-Za-z][A-Za-z0-9_:.-]*$")
+                    && !attr.Key.StartsWith("on", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    @Html.Raw($"{attr.Key}=\"{System.Net.WebUtility.HtmlEncode(attr.Value)}\" ")
+                }
             }
         }
         @(Model.IsMultiple ? "multiple" : "")

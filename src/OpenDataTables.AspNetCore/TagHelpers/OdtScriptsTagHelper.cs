@@ -9,7 +9,7 @@ namespace OpenDataTables.AspNetCore.TagHelpers;
 
 /// <summary>
 /// Emits the OpenDataTables client runtime: an inline <c>window.OpenDataTables.config</c> followed by the
-/// component scripts (core → datatable → filtercard → editable → init), served from
+/// component scripts (core → datatable → filtercard → init), served from
 /// <c>_content/OpenDataTables.AspNetCore</c>. Place once near the end of <c>&lt;body&gt;</c>, after jQuery
 /// and datatables.net. Select filters additionally require <c>&lt;os2-scripts /&gt;</c> (OpenSelect2).
 /// </summary>

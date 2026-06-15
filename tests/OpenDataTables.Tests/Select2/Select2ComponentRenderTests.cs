@@ -69,4 +69,38 @@ public class Select2ComponentRenderTests : IClassFixture<WebApplicationFactory<P
         Assert.True(items[0].TryGetProperty("id", out _));
         Assert.True(items[0].TryGetProperty("text", out _));
     }
+
+    [Fact]
+    public async Task ExtraAttributes_value_is_html_encoded_preventing_attribute_breakout()
+    {
+        // Regression test for A4: ExtraAttributes values must be HTML-attribute-encoded.
+        // A raw double-quote in the value must not be able to break out of the attribute context.
+        var client = _factory.CreateClient();
+
+        var html = await client.GetStringAsync("/Home/TestExtraAttributesXss");
+
+        // The encoded form must appear, confirming the quote was not passed through raw.
+        Assert.Contains("&quot;", html, StringComparison.Ordinal);
+        // Neither double-quote nor single-quote breakout forms should appear as a live attribute.
+        Assert.DoesNotContain("onmouseover=\"alert(1)\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("onmouseover='alert(1)'", html, StringComparison.Ordinal);
+        // The full encoded attribute value must appear correctly enclosed.
+        Assert.Contains("data-x=\"a&quot; onmouseover=&quot;alert(1)\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExtraAttributes_event_handler_names_are_rejected()
+    {
+        // Regression test for A4 hardening: on* attribute names must be silently dropped.
+        // The controller supplies ["onclick"] = "alert('xss')" which must not appear in the output.
+        var client = _factory.CreateClient();
+
+        var html = await client.GetStringAsync("/Home/TestExtraAttributesXss");
+
+        // The onclick key must have been dropped — neither the attribute name nor the JS value should appear.
+        Assert.DoesNotContain("onclick=", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("alert('xss')", html, StringComparison.Ordinal);
+        // The safe data-x attribute must still be present (verify the filter is key-level, not wholesale).
+        Assert.Contains("data-x=", html, StringComparison.Ordinal);
+    }
 }

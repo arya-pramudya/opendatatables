@@ -22,7 +22,7 @@
         <h5 class="card-title mb-0">@Model.Title</h5>
         <button class="btn btn-sm btn-link text-dark p-0" type="button" data-bs-toggle="collapse"
                 data-bs-target="#@(Model.FormId)_collapse" aria-expanded="true" aria-controls="@(Model.FormId)_collapse">
-            <i class="fa-solid fa-minus" id="@(Model.FormId)_collapse_icon"></i>
+            <i class="fas fa-minus" id="@(Model.FormId)_collapse_icon"></i>
         </button>
     </div>
     <div class="collapse show" id="@(Model.FormId)_collapse">
@@ -84,10 +84,10 @@
                 }
                 <div class="col-12 mt-2 d-flex justify-content-end">
                     <button type="button" id="@Model.TableId-search-btn" class="btn btn-primary btn-sm me-2">
-                        <i class="fa-solid fa-search"></i> Search
+                        <i class="fas fa-search"></i> Search
                     </button>
                     <button type="button" id="@Model.TableId-reset-btn" class="btn btn-secondary btn-sm">
-                        <i class="fa-solid fa-rotate"></i> Reset Filters
+                        <i class="fas fa-sync"></i> Reset Filters
                     </button>
                 </div>
             </form>

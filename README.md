@@ -33,7 +33,7 @@ serve them. Tested versions: **jQuery** 3.x, **datatables.net** 1.13+/2.x, **Boo
 ```
 src/      the two NuGet packages (Razor Class Libraries)
 samples/  SampleApp — minimal MVC app demoing every feature
-tests/    xUnit unit tests + Playwright end-to-end tests
+tests/    xUnit unit tests + ASP.NET Core MVC render tests (Mvc.Testing)
 ```
 
 ## Building

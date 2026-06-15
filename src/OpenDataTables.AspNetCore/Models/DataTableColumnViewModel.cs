@@ -19,7 +19,12 @@ public class DataTableColumnViewModel
     /// <summary>The type of filter input for this column (text, select, none, …).</summary>
     public DataTableFilterType Filter { get; set; } = DataTableFilterType.None;
 
-    /// <summary>Optional display format string (e.g. <c>"DD MMM YYYY"</c> for dates).</summary>
+    /// <summary>
+    /// Optional cell display format. Either the name of a formatter function registered via
+    /// <c>OpenDataTables.on(tableId, { "myFormat": fn })</c> (or a matching global function), which is
+    /// invoked as <c>fn(value)</c>; otherwise a moment-style date token string (e.g. <c>"DD MMM YYYY"</c>)
+    /// applied when the value parses as a date.
+    /// </summary>
     public string? Format { get; set; }
 
     // --- Options for select filters ---

@@ -28,6 +28,19 @@
       onUnauthorized: null, // function(jqXHR): return true if fully handled
       onError: null, // function(jqXHR): return true if fully handled
       notify: null, // function(type, message): return true if fully handled
+      // Theming hooks for the JS-rendered row action buttons. Override to retarget a different icon set
+      // (e.g. Font Awesome 6, Bootstrap Icons) or CSS framework without forking the runtime.
+      icons: {
+        view: 'fas fa-eye',
+        edit: 'fas fa-edit',
+        delete: 'fas fa-trash'
+      },
+      actionClasses: {
+        group: 'btn-group btn-group-sm',
+        view: 'btn-info',
+        edit: 'btn-primary',
+        delete: 'btn-danger'
+      },
       locale: {
         add: 'Add',
         edit: 'Edit',
@@ -61,6 +74,26 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  };
+
+  // Deep-merge that REPLACES arrays wholesale (so option arrays like columns/order/lengthMenu override
+  // cleanly instead of merging by index the way $.extend(true, …) does) and skips prototype-polluting
+  // keys (__proto__/constructor/prototype). Shared by the DataTable + Select2 escape-hatch merges.
+  util.mergeOptions = function mergeOptions(target, src) {
+    if (!src || typeof src !== 'object') return target;
+    Object.keys(src).forEach(function (key) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
+      var val = src[key];
+      if (Array.isArray(val)) {
+        target[key] = val.slice();
+      } else if (val && typeof val === 'object' &&
+                 target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+        mergeOptions(target[key], val);
+      } else {
+        target[key] = val;
+      }
+    });
+    return target;
   };
 
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

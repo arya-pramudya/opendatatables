@@ -41,6 +41,47 @@
     OpenSelect2.config
   );
 
+  // Per-id handler registry: OpenSelect2.on(id, { beforeInit, templateResult, templateSelection }).
+  // Object.create(null) prevents __proto__ / constructor prototype-pollution attacks.
+  var os2Registry = (OpenSelect2._instances = OpenSelect2._instances || Object.create(null));
+
+  /** Register host callbacks for a dropdown id. Call before DOMContentLoaded for best results. */
+  OpenSelect2.on = function (id, handlers) {
+    if (!id || typeof id !== 'string') return;
+    os2Registry[id] = os2Registry[id] || {};
+    os2Registry[id] = $.extend({}, os2Registry[id], handlers);
+  };
+
+  // Deep-merge that REPLACES arrays wholesale (jQuery's $.extend(true, …) merges arrays by index, which
+  // silently corrupts array-valued select2 options like `data` passed through the escape hatch) and skips
+  // prototype-polluting keys (__proto__/constructor/prototype).
+  function mergeOptions(target, src) {
+    if (!src || typeof src !== 'object') return target;
+    Object.keys(src).forEach(function (key) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') return;
+      var val = src[key];
+      if (Array.isArray(val)) {
+        target[key] = val.slice();
+      } else if (val && typeof val === 'object' &&
+                 target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+        mergeOptions(target[key], val);
+      } else {
+        target[key] = val;
+      }
+    });
+    return target;
+  }
+
+  // Apply registered host callbacks (templateResult/templateSelection, then beforeInit, which may
+  // return a replacement settings object) onto a select2 settings object. Returns the settings to use.
+  function applyRegistry(settings, reg) {
+    if (!reg) return settings;
+    if (typeof reg.templateResult === 'function') settings.templateResult = reg.templateResult;
+    if (typeof reg.templateSelection === 'function') settings.templateSelection = reg.templateSelection;
+    if (typeof reg.beforeInit === 'function') { var patched = reg.beforeInit(settings); if (patched) settings = patched; }
+    return settings;
+  }
+
   function locale() {
     return OpenSelect2.config.locale || {};
   }
@@ -246,14 +287,21 @@
       try { $el.select2('destroy'); } catch (e) { /* noop */ }
     }
 
+    // Inside a modal anchor the dropdown to the modal element (keeps stacking + focus correct); outside a
+    // modal use body — consistent across the static + AJAX paths and avoids overflow-clip from parents.
+    var $modal = $el.closest('.modal');
+
     // Static (local list): options are already in the markup — enhance without an AJAX data source.
     if (config.isStatic || !config.ajaxUrl) {
-      $el.select2({
+      var staticSettings = {
         placeholder: config.placeholder || 'Select...',
         allowClear: true,
         width: '100%',
-        dropdownParent: $el.closest('.modal').length ? $('body') : $el.parent()
-      });
+        dropdownParent: $modal.length ? $modal : $('body')
+      };
+      if (config.select2Options) mergeOptions(staticSettings, config.select2Options);
+      staticSettings = applyRegistry(staticSettings, os2Registry[config.id]);
+      $el.select2(staticSettings);
       setReadOnly($el, !!config.isReadOnly);
       return;
     }
@@ -267,11 +315,11 @@
 
     if (config.parentId) wireCascade($el, config);
 
-    $el.select2({
+    var ajaxSettings = {
       placeholder: placeholder,
       allowClear: true,
       width: '100%',
-      dropdownParent: $('body'),
+      dropdownParent: $modal.length ? $modal : $('body'),
       ajax: {
         url: config.ajaxUrl,
         dataType: 'json',
@@ -310,7 +358,27 @@
           return request;
         }
       }
-    });
+    };
+
+    // B0 escape hatch: merge raw select2 options, then allow host JS to patch via beforeInit / templates.
+    // mergeOptions replaces arrays wholesale. The built-in ajax.transport (handles 401/errors) is
+    // re-asserted after BOTH the merge and a beforeInit replacement, so neither can drop it; host ajax
+    // sub-keys (url, delay, …) still merge through. A non-object `ajax` is normalized (never throws).
+    var _transport = ajaxSettings.ajax.transport;
+    function protectTransport(s) {
+      if (!s.ajax || typeof s.ajax !== 'object' || Array.isArray(s.ajax)) s.ajax = {};
+      s.ajax.transport = _transport;
+      return s;
+    }
+
+    if (config.select2Options) {
+      mergeOptions(ajaxSettings, config.select2Options);
+      protectTransport(ajaxSettings);
+    }
+    ajaxSettings = applyRegistry(ajaxSettings, os2Registry[config.id]);
+    protectTransport(ajaxSettings);
+
+    $el.select2(ajaxSettings);
 
     setReadOnly($el, !!config.isReadOnly);
   }
