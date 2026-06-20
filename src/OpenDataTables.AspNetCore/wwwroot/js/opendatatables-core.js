@@ -51,7 +51,11 @@
         actions: 'Actions',
         filterTitle: 'Filter Data',
         sessionExpiredTitle: 'Warning',
-        sessionExpiredMessage: 'Your session has expired. Please log in again.'
+        sessionExpiredMessage: 'Your session has expired. Please log in again.',
+        unsavedChangesTitle: 'Unsaved changes',
+        unsavedChangesMessage: 'You have unsaved changes on this page. Discard them and continue?',
+        discardChanges: 'Discard',
+        keepEditing: 'Keep editing'
       }
     },
     ODT.config
@@ -76,6 +80,15 @@
       .replace(/'/g, '&#39;');
   };
 
+  // True only for plain {} objects — NOT Date/RegExp/jQuery/DOM nodes/class instances. Used so the deep
+  // merge below recurses only into plain objects and REPLACES everything else by reference, instead of
+  // recursing into (and corrupting/dropping) a special object like a jQuery dropdownParent or a Date.
+  util.isPlainObject = function (o) {
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+    var proto = Object.getPrototypeOf(o);
+    return proto === Object.prototype || proto === null;
+  };
+
   // Deep-merge that REPLACES arrays wholesale (so option arrays like columns/order/lengthMenu override
   // cleanly instead of merging by index the way $.extend(true, …) does) and skips prototype-polluting
   // keys (__proto__/constructor/prototype). Shared by the DataTable + Select2 escape-hatch merges.
@@ -86,8 +99,7 @@
       var val = src[key];
       if (Array.isArray(val)) {
         target[key] = val.slice();
-      } else if (val && typeof val === 'object' &&
-                 target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+      } else if (util.isPlainObject(val) && util.isPlainObject(target[key])) {
         mergeOptions(target[key], val);
       } else {
         target[key] = val;

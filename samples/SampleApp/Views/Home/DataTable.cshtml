@@ -3,7 +3,17 @@
 }
 
 <h1>OpenDataTables demo</h1>
-<p class="text-muted">One <code>Component.InvokeAsync("DataTable", …)</code> call: server-side sort/page, a filter card, and CSP-friendly action buttons.</p>
+<p class="text-muted">
+    Three server-side grids from the same <code>DataTable</code> component: a full-featured table, a
+    nested <em>table&#8209;in&#8209;a&#8209;table</em>, and a row-grouped table built through the options
+    escape hatch.
+</p>
+
+<h4 class="mt-4">1 &middot; Full-featured grid</h4>
+<p class="text-muted small">
+    Filter card, server-side sort/page, row numbering, CSP-friendly action buttons, a top
+    <em>Export</em> button, and a named <code>money</code> formatter on the Price cells.
+</p>
 
 @await Component.InvokeAsync("DataTable", new DataTableViewModel
 {
@@ -13,6 +23,7 @@
     DefaultSortDirection = "asc",
     PageLength = 10,
     FilterUiMode = DataTableFilterUiMode.FilterCard,
+    HasNumbering = true,
     ShowAdd = true,
     ShowView = true,
     ShowEdit = true,
@@ -38,13 +49,96 @@
                     new() { Id = "Inactive", Text = "Inactive" },
                     new() { Id = "Discontinued", Text = "Discontinued" },
                 ] },
-        new() { Data = "price", Title = "Price", CellClass = "text-end" },
+        new() { Data = "price", Title = "Price", CellClass = "text-end", Format = "money" },
         new() { Data = "createdAt", Title = "Created", Filter = DataTableFilterType.Date, Format = "DD MMM YYYY" },
     ],
 })
 
+<hr class="my-5" />
+
+<h4>2 &middot; Nested rows (table inside a table)</h4>
+<p class="text-muted small">
+    Each <strong>category</strong> row expands (click the <code>+</code>) to a child
+    <strong>products</strong> grid, fetched from the same <code>GetData</code> endpoint with
+    <code>category&nbsp;=&nbsp;row.id</code> — the <code>row.</code> token reads the parent row's JSON.
+</p>
+
+@await Component.InvokeAsync("DataTable", new DataTableViewModel
+{
+    TableId = "tblCategories",
+    AjaxUrl = Url.Action("GetCategories", "Products")!,
+    DefaultSortColumn = "name",
+    PageLength = 5,
+    FilterUiMode = DataTableFilterUiMode.None,
+    HasNumbering = true,
+    ShowAdd = false,
+    ShowView = false,
+    ShowEdit = false,
+    ShowDelete = false,
+    Columns =
+    [
+        new() { Data = "id", Title = "Id", IsVisible = false },
+        new() { Data = "name", Title = "Category" },
+        new() { Data = "productCount", Title = "# Products", CellClass = "text-end" },
+        new() { Data = "avgPrice", Title = "Avg price", CellClass = "text-end", Format = "money" },
+    ],
+    // Table-in-a-table: enable expandable child rows and describe the child grid.
+    HasChildRows = true,
+    ChildAjaxUrl = Url.Action("GetData", "Products")!,
+    ChildCustomParameters = new() { ["category"] = "row.id" },
+    ChildColumns =
+    [
+        new() { Data = "name", Title = "Product" },
+        new() { Data = "status", Title = "Status" },
+        new() { Data = "price", Title = "Price", CellClass = "text-end" },
+        new() { Data = "createdAt", Title = "Created", Format = "DD MMM YYYY" },
+    ],
+})
+
+<hr class="my-5" />
+
+<h4>3 &middot; Row grouping (RowGroup via the options escape hatch)</h4>
+<p class="text-muted small">
+    The same products, banded by category using the datatables.net <code>RowGroup</code> extension —
+    configured through <code>DataTableOptions</code> (merged last over the computed options). Rows are
+    sorted by the hidden <code>category</code> column so each group stays contiguous on the page.
+</p>
+
+@await Component.InvokeAsync("DataTable", new DataTableViewModel
+{
+    TableId = "tblGrouped",
+    AjaxUrl = Url.Action("GetData", "Products")!,
+    DefaultSortColumn = "category",
+    DefaultSortDirection = "asc",
+    PageLength = 25,
+    FilterUiMode = DataTableFilterUiMode.None,
+    ShowAdd = false,
+    ShowView = false,
+    ShowEdit = false,
+    ShowDelete = false,
+    Columns =
+    [
+        new() { Data = "id", Title = "Id", IsVisible = false },
+        new() { Data = "category", Title = "Category", IsVisible = false },
+        new() { Data = "name", Title = "Product" },
+        new() { Data = "status", Title = "Status" },
+        new() { Data = "price", Title = "Price", CellClass = "text-end", Format = "money" },
+    ],
+    DataTableOptions = new()
+    {
+        ["rowGroup"] = new Dictionary<string, object?> { ["dataSrc"] = "category" }
+    },
+})
+
 @section Scripts {
     <script>
+        // Register a shared "money" cell formatter (resolved by name from each column's Format) BEFORE the
+        // tables initialise on DOMContentLoaded. Named formatters keep markup CSP-friendly and avoid
+        // polluting the global namespace.
+        ['tblProducts', 'tblCategories', 'tblGrouped'].forEach(function (id) {
+            OpenDataTables.on(id, { money: function (v) { return v == null ? '' : '$' + Number(v).toFixed(2); } });
+        });
+
         // Host-defined action handlers, resolved by name from the DataTable config (CSP-friendly).
         function productAdd() { OpenDataTables.util.notify('info', 'Add clicked'); }
         function productView(id) { OpenDataTables.util.notify('info', 'View #' + id); }

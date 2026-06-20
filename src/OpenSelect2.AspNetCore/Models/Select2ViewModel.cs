@@ -99,4 +99,18 @@ public class Select2ViewModel
     /// <c>OpenSelect2.on(id, { templateResult, templateSelection, beforeInit })</c> from host JS.
     /// </summary>
     public Dictionary<string, object?>? Select2Options { get; set; }
+
+    /// <summary>
+    /// Returns a copy safe for the render pipeline (TagHelper attribute overrides, auto <see cref="Id"/>,
+    /// <see cref="Abstractions.ISelect2Preselector"/>) to mutate without affecting a caller-supplied
+    /// template that may be reused across requests or rendered more than once on a page. Scalars are copied;
+    /// the mutable item lists are copied (element instances are shared).
+    /// </summary>
+    internal Select2ViewModel CloneForRender()
+    {
+        var copy = (Select2ViewModel)MemberwiseClone();
+        if (Items is not null) copy.Items = new List<Select2ListItem>(Items);
+        if (SelectedItems is not null) copy.SelectedItems = new List<Select2ListItem>(SelectedItems);
+        return copy;
+    }
 }

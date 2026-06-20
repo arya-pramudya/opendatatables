@@ -5,7 +5,7 @@
     if (Model.Columns.Any(c => c.FilterIndex.HasValue))
         Model.Columns = Model.Columns.OrderBy(c => c.FilterIndex ?? int.MaxValue).ToList();
 
-    var visibleCols = Model.GetVisibleColumns();
+    var filterableCols = Model.GetFilterableColumns();
     var perRow = Model.ColumnsPerRow <= 0 ? 3 : Model.ColumnsPerRow;
     var colWidth = 12 / perRow;
 
@@ -28,7 +28,7 @@
     <div class="collapse show" id="@(Model.FormId)_collapse">
         <div class="card-body p-3">
             <form id="@Model.FormId" class="row g-2" onsubmit="return false;">
-                @foreach (var col in visibleCols)
+                @foreach (var col in filterableCols)
                 {
                     var key = FilterKey(col);
                     var inputId = $"{Model.TableId}_filter_{col.Data}";

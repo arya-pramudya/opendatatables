@@ -35,8 +35,12 @@ public class DataTableViewModel
     /// <summary>Custom buttons (top-of-table or per-row).</summary>
     public List<DataTableButtonViewModel>? CustomButtons { get; set; }
 
-    /// <summary>The HTML id of the table (auto-generated if blank).</summary>
-    public string TableId { get; set; } = "dataTable";
+    /// <summary>
+    /// The HTML id of the table. Left blank by default so the ViewComponent assigns a unique
+    /// <c>dt_{guid}</c> id — this keeps multiple tables on one page (e.g. several <c>&lt;odt-table&gt;</c>
+    /// tags) from colliding on a shared id. Set explicitly to target the table from host CSS/JS.
+    /// </summary>
+    public string TableId { get; set; } = "";
 
     /// <summary>The AJAX endpoint returning the <see cref="DataTableResponseViewModel{T}"/> payload.</summary>
     public required string AjaxUrl { get; set; }
@@ -52,9 +56,6 @@ public class DataTableViewModel
 
     /// <summary>Default sort direction (<c>asc</c>/<c>desc</c>).</summary>
     public string? DefaultSortDirection { get; set; }
-
-    /// <summary>Resolved per-column filter configs (auto-built from <see cref="Columns"/> when empty).</summary>
-    public List<DataTableColumnFilterConfig> FilterConfigs { get; set; } = new();
 
     /// <summary>Per-column editor configs (editable tables).</summary>
     public List<DataTableColumnEditorConfig> EditorConfigs { get; set; } = new();
@@ -99,6 +100,13 @@ public class DataTableViewModel
     /// <summary>Save mode for editable tables.</summary>
     public EditableTableSaveMode SaveMode { get; set; } = EditableTableSaveMode.Manual;
 
+    /// <summary>
+    /// What an editable grid does when the user changes page while the current page has unsaved inline edits.
+    /// Defaults to <see cref="UnsavedEditBehavior.Warn"/> so edits are never lost silently. Ignored for
+    /// non-editable grids and for <see cref="EditableTableSaveMode.Auto"/> (which saves each change already).
+    /// </summary>
+    public UnsavedEditBehavior UnsavedEditBehavior { get; set; } = UnsavedEditBehavior.Warn;
+
     /// <summary>How filters are displayed (FilterCard default, Inline, Top, Mixed, or None).</summary>
     public DataTableFilterUiMode FilterUiMode { get; set; } = DataTableFilterUiMode.FilterCard;
 
@@ -142,13 +150,14 @@ public class DataTableViewModel
     /// </summary>
     public void Validate()
     {
-        if (FilterUiMode is DataTableFilterUiMode.Inline
-                or DataTableFilterUiMode.Top
-                or DataTableFilterUiMode.Mixed)
+        // Allow-list the supported modes (fail-safe): any value that is not explicitly supported — today's
+        // Inline/Top/Mixed or any future enum member added before it is implemented — is rejected here
+        // rather than silently rendering nothing.
+        if (FilterUiMode is not (DataTableFilterUiMode.FilterCard or DataTableFilterUiMode.None))
         {
             throw new DataTableConfigurationException(
                 nameof(FilterUiMode),
-                $"DataTableFilterUiMode.{FilterUiMode} is not implemented yet. " +
+                $"DataTableFilterUiMode.{FilterUiMode} is not supported yet. " +
                 "Use DataTableFilterUiMode.FilterCard or DataTableFilterUiMode.None.");
         }
 
@@ -161,5 +170,25 @@ public class DataTableViewModel
                 "DataTableFilterType.Range is not implemented yet. Use Text/Date/Select/SelectStatic, " +
                 "or send a range as two server-side parameters.");
         }
+    }
+
+    /// <summary>
+    /// Returns a copy safe for the render pipeline (TagHelper attribute overrides, auto <see cref="TableId"/>,
+    /// <see cref="Abstractions.IDataTableFilterPreselector"/>, column replacement) to mutate without
+    /// affecting a caller-supplied template that may be reused across requests or rendered more than once on
+    /// a page. Scalars and the mutable collections the pipeline reassigns/appends to are copied; element
+    /// instances are shared (shallow).
+    /// </summary>
+    internal DataTableViewModel CloneForRender()
+    {
+        var copy = (DataTableViewModel)MemberwiseClone();
+        copy.Columns = new List<DataTableColumnViewModel>(Columns ?? new());
+        copy.EditorConfigs = new List<DataTableColumnEditorConfig>(EditorConfigs ?? new());
+        if (ChildColumns is not null) copy.ChildColumns = new List<DataTableColumnViewModel>(ChildColumns);
+        // DataTableOptions is appended to in place by the render pipeline (e.g. the group-by tag helper
+        // writes options["rowGroup"]), so it must be copied too — otherwise the mutation leaks back into a
+        // shared/cached template across requests or repeated renders.
+        if (DataTableOptions is not null) copy.DataTableOptions = new Dictionary<string, object?>(DataTableOptions);
+        return copy;
     }
 }

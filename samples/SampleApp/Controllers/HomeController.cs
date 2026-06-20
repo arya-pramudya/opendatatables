@@ -13,6 +13,9 @@ public class HomeController : Controller
 
     public IActionResult Editable() => View();
 
+    /// <summary>Same components as the other demos, authored with the declarative tag-helper syntax.</summary>
+    public IActionResult TagHelpers() => View();
+
     /// <summary>Renders a Select2 with a dangerous ExtraAttributes value — used by regression tests only.</summary>
     public IActionResult TestExtraAttributesXss() => View(new Select2ViewModel
     {

@@ -106,6 +106,18 @@ public class DataTableQueryExtensionsTests
     }
 
     [Fact]
+    public void ToDataTableResponse_honors_explicit_direction_on_default_column_on_initial_draw()
+    {
+        // Draw="1" with an explicit desc sort on the default column must NOT be rewritten to the default
+        // direction (asc). Regression: the initial-draw branch used to clobber a restored/pre-seeded
+        // explicit direction whenever the sorted column happened to equal the default column.
+        var result = Rows().ToDataTableResponse(
+            Query("name", "desc", draw: "1"), 4, defaultSortColumn: "name", defaultSortDirection: "asc");
+
+        Assert.Equal(new[] { "delta", "Charlie", "Bravo", "alpha" }, result.data!.Select(r => r.Name));
+    }
+
+    [Fact]
     public void ToDataTableResponse_honors_explicit_id_primary_in_multi_column_sort()
     {
         // A genuine 2-column sort starting on Id is an explicit user choice: it must NOT be rewritten to

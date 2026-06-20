@@ -3,7 +3,12 @@
 }
 
 <h1>OpenDataTables — editable demo</h1>
-<p class="text-muted">Same <code>DataTable</code> component — it becomes editable just by supplying <code>EditorConfigs</code>. Click <strong>Edit</strong> to turn Price/Status into inline editors (Manual save), then <strong>Save</strong>.</p>
+<p class="text-muted">
+    The same <code>DataTable</code> component becomes editable just by supplying <code>EditorConfigs</code>.
+    Click <strong>Edit</strong> to turn the configured columns into inline editors (Manual save), then
+    <strong>Save</strong>. This grid demonstrates all four editor types — <em>Text</em> (Name),
+    <em>Number</em> (Price), <em>Date</em> (Created), and <em>Select2 static</em> (Status).
+</p>
 
 @await Component.InvokeAsync("DataTable", new DataTableViewModel
 {
@@ -11,9 +16,13 @@
     AjaxUrl = Url.Action("GetData", "Products")!,
     SaveAjaxUrl = Url.Action("SaveData", "Products")!,
     SaveMode = EditableTableSaveMode.Manual,
+    // Default: warn (and offer to discard) if you page away with unsaved edits. Use AutoSave to persist
+    // them first, or None for the old "edits are lost on page change" behavior.
+    UnsavedEditBehavior = UnsavedEditBehavior.Warn,
     DefaultSortColumn = "name",
     PageLength = 10,
     FilterUiMode = DataTableFilterUiMode.None,
+    HasNumbering = true,
     ShowAdd = false,
     ShowView = false,
     ShowEdit = false,
@@ -24,11 +33,14 @@
         new() { Data = "name", Title = "Name" },
         new() { Data = "category", Title = "Category" },
         new() { Data = "status", Title = "Status" },
-        new() { Data = "price", Title = "Price", CellClass = "text-end" },
+        new() { Data = "price", Title = "Price", CellClass = "text-end", Format = "money" },
+        new() { Data = "createdAt", Title = "Created", Format = "DD MMM YYYY" },
     ],
     EditorConfigs =
     [
+        new() { Column = "name", EditorType = DataTableEditorType.Text },
         new() { Column = "price", EditorType = DataTableEditorType.Number },
+        new() { Column = "createdAt", EditorType = DataTableEditorType.Date },
         new() { Column = "status", EditorType = DataTableEditorType.Select2Static,
                 StaticOptions =
                 [
@@ -38,3 +50,10 @@
                 ] },
     ],
 })
+
+@section Scripts {
+    <script>
+        // Pretty-print Price in display (non-edit) mode; the Number editor takes over while editing.
+        OpenDataTables.on('tblEdit', { money: function (v) { return v == null ? '' : '$' + Number(v).toFixed(2); } });
+    </script>
+}

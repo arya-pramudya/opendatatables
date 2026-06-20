@@ -30,6 +30,18 @@ public class Select2ComponentRenderTests : IClassFixture<WebApplicationFactory<P
     }
 
     [Fact]
+    public async Task ExtraParamsHtml_emits_live_dom_sourced_param_in_config()
+    {
+        // ExtraParamsHTML maps a param name to a CSS selector whose value is read at request time. It must
+        // reach the rendered JSON config under "extraParamsHTML" (so openselect2.js sends the live value),
+        // not be dropped or folded into the static "extraParams".
+        var client = _factory.CreateClient();
+        var html = await (await client.GetAsync("/Home/Select2")).Content.ReadAsStringAsync();
+
+        Assert.Contains("\"extraParamsHTML\":{\"maxPrice\":", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Preselect_hook_locks_the_control()
     {
         var client = _factory.CreateClient();

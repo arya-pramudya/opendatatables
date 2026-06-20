@@ -6,7 +6,10 @@ working, server-side **jQuery DataTable** or AJAX **Select2** dropdown — with 
 | Package | What it gives you |
 |---|---|
 | [`OpenSelect2.AspNetCore`](src/OpenSelect2.AspNetCore) | Server-configured AJAX Select2 with infinite-scroll paging, cascading parent→child chains, pre-selection, read-only/disabled semantics, and a 5-line controller response helper. |
-| [`OpenDataTables.AspNetCore`](src/OpenDataTables.AspNetCore) | Server-side DataTable with filters (text/select/cascading/date), a filter card, child rows, custom buttons, an editable mode, and sort/page helpers. Depends on `OpenSelect2.AspNetCore`. |
+| [`OpenDataTables.AspNetCore`](src/OpenDataTables.AspNetCore) | Server-side DataTable with filters (text/select/cascading/date), a filter card, multi-column sort, row numbering, child rows (table-in-a-table), row grouping, custom buttons, an editable mode, and sort/page helpers. Depends on `OpenSelect2.AspNetCore`. |
+
+Both render either imperatively (`Component.InvokeAsync`) or as **declarative tag helpers**
+(`<os2-select>` / `<odt-table>`) — identical output, pick whichever reads better.
 
 ```cshtml
 @* one line renders an AJAX dropdown — no <script> to write *@
@@ -16,6 +19,26 @@ working, server-side **jQuery DataTable** or AJAX **Select2** dropdown — with 
     AjaxUrl = Url.Action("Categories", "Lookup")!,
 })
 ```
+
+…or the same thing as a declarative tag (see [Tag Helper syntax](docs/getting-started.md#tag-helper-syntax)):
+
+```cshtml
+<os2-select name="CategoryId" label="Category" ajax-url="@Url.Action("Categories", "Lookup")" />
+
+<odt-table ajax-url="@Url.Action("GetData", "Products")" page-length="10">
+    <odt-column data="name" title="Name" filter="Text" />
+    <odt-column data="status" title="Status" filter="SelectStatic" static-options="Active,Inactive" />
+</odt-table>
+```
+
+## Documentation
+
+Full guides live in [`docs/`](docs/):
+
+- **[Getting started](docs/getting-started.md)** — install, DI setup, layout wiring, peer deps.
+- **[OpenSelect2 guide](docs/openselect2.md)** — AJAX dropdowns, cascades, pre-selection, static lists.
+- **[OpenDataTables guide](docs/opendatatables.md)** — filters, sort/paging, buttons, child rows, editable mode.
+- **[Configuration reference](docs/configuration.md)** — every option, view-model property, and helper.
 
 ## Status
 

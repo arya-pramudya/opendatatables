@@ -2,10 +2,13 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
 
 jobs:
   pack-publish:
+    permissions:
+      id-token: write
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,12 +43,16 @@ jobs:
           dotnet pack src/OpenDataTables.AspNetCore/OpenDataTables.AspNetCore.csproj -c Release -o artifacts -p:Version=${{ steps.ver.outputs.version }}
 
       # Publish order matters: OpenSelect2 first (OpenDataTables references it).
+      - name: NuGet trusted-publishing login
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: aryapramudya # your nuget.org username (package owner)
+
       - name: Push to nuget.org
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          dotnet nuget push "artifacts/OpenSelect2.AspNetCore.*.nupkg"   --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
-          dotnet nuget push "artifacts/OpenDataTables.AspNetCore.*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          dotnet nuget push "artifacts/OpenSelect2.AspNetCore.*.nupkg"   --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          dotnet nuget push "artifacts/OpenDataTables.AspNetCore.*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2

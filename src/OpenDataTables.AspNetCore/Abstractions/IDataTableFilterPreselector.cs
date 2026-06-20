@@ -9,10 +9,11 @@ namespace OpenDataTables.AspNetCore.Abstractions;
 /// is optional.
 /// </summary>
 /// <remarks>
-/// A typical implementation iterates <see cref="DataTableViewModel.FilterConfigs"/>, switches on each
-/// <see cref="DataTableColumnFilterConfig.PreselectKey"/>, adds entries to
-/// <see cref="DataTableColumnFilterConfig.SelectedItems"/>, and sets
-/// <see cref="DataTableColumnFilterConfig.IsDisabled"/> when the value must not be changed.
+/// A typical implementation iterates <see cref="DataTableViewModel.Columns"/>, switches on each
+/// <see cref="DataTableColumnViewModel.Data"/> (or a column key of your choosing), adds entries to
+/// <see cref="DataTableColumnViewModel.SelectedItems"/>, and sets
+/// <see cref="DataTableColumnViewModel.IsDisabled"/> when the value must not be changed — these are the
+/// properties the filter card actually renders.
 /// </remarks>
 public interface IDataTableFilterPreselector
 {

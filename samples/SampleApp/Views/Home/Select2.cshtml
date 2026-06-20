@@ -92,4 +92,22 @@
             SelectedItems = [ new() { Id = "Active", Text = "Active" } ],
         })
     </div>
+
+    <div class="col-md-6">
+        <h5>Live request param (<code>ExtraParamsHTML</code>)</h5>
+        <p class="text-muted small mb-2">
+            The dropdown sends a sibling input's <em>current</em> value with every AJAX request —
+            <code>ExtraParamsHTML</code> maps a param name to a CSS selector read at request time. Set a
+            max price, then search: only products at or below it come back.
+        </p>
+        <label for="liveMaxPrice" class="form-label">Max price</label>
+        <input id="liveMaxPrice" type="number" class="form-control mb-2" value="50" min="0" step="1" />
+        @await Component.InvokeAsync("Select2", new Select2ViewModel
+        {
+            Id = "liveProducts", Name = "LiveProducts", Label = "Products at or below max price",
+            AjaxUrl = Url.Action("Products", "Lookup")!,
+            Placeholder = "Search products…",
+            ExtraParamsHTML = new() { ["maxPrice"] = "#liveMaxPrice" },
+        })
+    </div>
 </div>

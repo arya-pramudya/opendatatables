@@ -44,9 +44,15 @@
         {
             foreach (var attr in Model.ExtraAttributes)
             {
-                @* Safe token check: reject event-handler names (on*) and anything non-identifier. *@
-                if (System.Text.RegularExpressions.Regex.IsMatch(attr.Key, @"^[A-Za-z][A-Za-z0-9_:.-]*$")
-                    && !attr.Key.StartsWith("on", System.StringComparison.OrdinalIgnoreCase))
+                @* Safe attribute-NAME check (the value is always HTML-encoded below): allow only plain
+                   data-/aria-/identifier names. No ':' (blocks xlink:href/xmlns:*), no event handlers
+                   (on*), and no URL/markup/style-bearing names that can carry an active payload even with
+                   an encoded value (style, src, href, srcdoc, formaction, …). *@
+                if (System.Text.RegularExpressions.Regex.IsMatch(attr.Key, @"^[A-Za-z][A-Za-z0-9_.-]*$")
+                    && !attr.Key.StartsWith("on", System.StringComparison.OrdinalIgnoreCase)
+                    && !System.Text.RegularExpressions.Regex.IsMatch(attr.Key,
+                        @"^(style|src|srcdoc|href|xmlns|formaction|action|background|data|dynsrc|lowsrc|ping|poster)$",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 {
                     @Html.Raw($"{attr.Key}=\"{System.Net.WebUtility.HtmlEncode(attr.Value)}\" ")
                 }

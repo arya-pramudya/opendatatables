@@ -1,0 +1,151 @@
+@{
+    ViewData["Title"] = "Tag Helpers";
+}
+
+<h1>Tag Helper syntax</h1>
+<p class="text-muted">
+    The same components as the other demos, written as declarative tags
+    (<code>&lt;os2-select&gt;</code> / <code>&lt;odt-table&gt;</code>) instead of
+    <code>Component.InvokeAsync</code>. Everything below is expressed purely with tags and attributes —
+    no <code>config</code> model — including custom buttons, child rows, grouping, and inline editors.
+</p>
+
+<h5 class="mt-4">OpenSelect2 — <code>&lt;os2-select&gt;</code></h5>
+<div class="row g-4">
+    <div class="col-md-6">
+        <h6>Basic AJAX (infinite scroll)</h6>
+        <os2-select name="TagCategory" id="tagCategory" label="Category"
+                    ajax-url="@Url.Action("Categories", "Lookup")"
+                    placeholder="Search categories…" />
+    </div>
+
+    <div class="col-md-6">
+        <h6>Cascade (parent-id)</h6>
+        <os2-select name="TagSub" id="tagSub" label="Subcategory"
+                    ajax-url="@Url.Action("SubCategories", "Lookup")"
+                    parent-id="tagCategory" placeholder="Choose a category first…" />
+    </div>
+
+    <div class="col-md-6">
+        <h6>Static list (nested <code>&lt;os2-item&gt;</code>)</h6>
+        <os2-select name="TagStatus" id="tagStatus" label="Status">
+            <os2-item value="Active" text="Active" selected />
+            <os2-item value="Inactive" text="Inactive" />
+            <os2-item value="Discontinued" text="Discontinued" />
+        </os2-select>
+    </div>
+
+    <div class="col-md-6">
+        <h6>Multiple + Select All</h6>
+        <os2-select name="TagProducts" id="tagProducts" label="Products"
+                    ajax-url="@Url.Action("Products", "Lookup")"
+                    multiple="true" can-select-all="true"
+                    placeholder="Pick several products…" />
+    </div>
+
+    <div class="col-md-6">
+        <h6>Live request param (<code>extra-html-param-</code>)</h6>
+        <p class="text-muted small mb-2">
+            Sends a sibling input's current value with every request. <code>extra-html-param-{name}</code>
+            populates <code>ExtraParamsHTML</code> (the live counterpart of the static
+            <code>extra-param-{name}</code>).
+        </p>
+        <input id="tagMaxPrice" type="number" class="form-control mb-2" value="50" min="0" step="1"
+               placeholder="Max price" />
+        <os2-select name="TagLiveProducts" id="tagLiveProducts" label="Products at or below max price"
+                    ajax-url="@Url.Action("Products", "Lookup")"
+                    extra-html-param-maxprice="#tagMaxPrice"
+                    placeholder="Search products…" />
+    </div>
+</div>
+
+<h5 class="mt-4">OpenDataTables — <code>&lt;odt-table&gt;</code> with <code>&lt;odt-column&gt;</code></h5>
+<odt-table table-id="tblTagProducts"
+           ajax-url="@Url.Action("GetData", "Products")"
+           default-sort-column="name" default-sort-direction="asc"
+           page-length="10">
+    <odt-column data="id" title="Id" visible="false" />
+    <odt-column data="name" title="Name" filter="Text" />
+    <odt-column data="category" title="Category" filter="Select"
+                options-url="@Url.Action("Categories", "Lookup")" />
+    <odt-column data="status" title="Status" filter="SelectStatic"
+                static-options="Active,Inactive,Discontinued" />
+    <odt-column data="price" title="Price" cell-class="text-end" />
+    <odt-column data="createdAt" title="Created" filter="Date" format="DD MMM YYYY" />
+</odt-table>
+
+<h5 class="mt-5">Custom buttons &amp; nested rows — <code>&lt;odt-button&gt;</code> + <code>&lt;odt-child-column&gt;</code></h5>
+<p class="text-muted small">
+    A top <em>Export</em> button (<code>&lt;odt-button&gt;</code>) and a child grid
+    (<code>&lt;odt-child-column&gt;</code> + <code>child-ajax-url</code>): each category row expands to its
+    products, fetched with <code>category&nbsp;=&nbsp;row.id</code> via <code>child-param-category</code>.
+</p>
+<odt-table table-id="tblTagNested"
+           ajax-url="@Url.Action("GetCategories", "Products")"
+           child-ajax-url="@Url.Action("GetData", "Products")"
+           child-param-category="row.id"
+           default-sort-column="name" page-length="5" has-numbering="true"
+           filter-ui-mode="None"
+           show-add="false" show-view="false" show-edit="false" show-delete="false">
+    <odt-button text="Export" icon="fas fa-file-csv" css-class="btn-outline-success" placement="top" on-click="tagExport" />
+    <odt-column data="id" title="Id" visible="false" />
+    <odt-column data="name" title="Category" />
+    <odt-column data="productCount" title="# Products" cell-class="text-end" />
+    <odt-column data="avgPrice" title="Avg price" cell-class="text-end" format="money" />
+    <odt-child-column data="name" title="Product" />
+    <odt-child-column data="status" title="Status" />
+    <odt-child-column data="price" title="Price" />
+    <odt-child-column data="createdAt" title="Created" format="DD MMM YYYY" />
+</odt-table>
+
+<h5 class="mt-5">Grouped — <code>group-by</code></h5>
+<p class="text-muted small">
+    <code>group-by="category"</code> wires the datatables.net <code>RowGroup</code> extension and sorts by
+    the (hidden) group column so each band stays contiguous — no escape hatch in the markup.
+</p>
+<odt-table table-id="tblTagGrouped"
+           ajax-url="@Url.Action("GetData", "Products")"
+           group-by="category" default-sort-direction="asc" page-length="25"
+           filter-ui-mode="None"
+           show-add="false" show-view="false" show-edit="false" show-delete="false">
+    <odt-column data="id" title="Id" visible="false" />
+    <odt-column data="category" title="Category" visible="false" />
+    <odt-column data="name" title="Product" />
+    <odt-column data="status" title="Status" />
+    <odt-column data="price" title="Price" cell-class="text-end" format="money" />
+</odt-table>
+
+<h5 class="mt-5">Editable — <code>editor</code> on <code>&lt;odt-column&gt;</code></h5>
+<p class="text-muted small">
+    Each editable column declares its <code>editor</code> (Text, Number, Date, or a static Select2). Click
+    <strong>Edit</strong> to swap those cells for inline editors, then <strong>Save</strong> — the same as
+    the imperative <a asp-controller="Home" asp-action="Editable">Editable</a> demo, in tag form. This one
+    uses <code>unsaved-edit-behavior="AutoSave"</code>, so editing then paging persists the page's edits
+    automatically (the imperative demo uses the default <code>Warn</code>).
+</p>
+<odt-table table-id="tblTagEdit"
+           ajax-url="@Url.Action("GetData", "Products")"
+           save-ajax-url="@Url.Action("SaveData", "Products")"
+           save-mode="Manual"
+           unsaved-edit-behavior="AutoSave"
+           default-sort-column="name" page-length="10" has-numbering="true"
+           filter-ui-mode="None"
+           show-add="false" show-view="false" show-edit="false" show-delete="false">
+    <odt-column data="id" title="Id" visible="false" />
+    <odt-column data="name" title="Name" editor="Text" />
+    <odt-column data="category" title="Category" />
+    <odt-column data="status" title="Status" editor="Select2Static" editor-static-options="Active,Inactive,Discontinued" />
+    <odt-column data="price" title="Price" cell-class="text-end" format="money" editor="Number" />
+    <odt-column data="createdAt" title="Created" format="DD MMM YYYY" editor="Date" />
+</odt-table>
+
+@section Scripts {
+    <script>
+        // One shared "money" formatter registered for every tag-helper table before they initialise, plus
+        // the custom-button handler. Named formatters keep markup CSP-friendly and out of the global scope.
+        ['tblTagNested', 'tblTagGrouped', 'tblTagEdit'].forEach(function (id) {
+            OpenDataTables.on(id, { money: function (v) { return v == null ? '' : '$' + Number(v).toFixed(2); } });
+        });
+        function tagExport() { OpenDataTables.util.notify('info', 'Export clicked'); }
+    </script>
+}

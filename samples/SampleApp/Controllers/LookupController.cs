@@ -39,10 +39,15 @@ public class LookupController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Products(Select2QueryViewModel query)
+    public async Task<IActionResult> Products(Select2QueryViewModel query, decimal? maxPrice)
     {
+        // maxPrice is a live, DOM-sourced extra param (see the ExtraParamsHTML / extra-html-param- demos):
+        // the dropdown reads a sibling input's current value and sends it with each search request. Bound
+        // case-insensitively, so both "maxPrice" (imperative key) and "maxprice" (lowercased tag-helper key)
+        // land here. Optional — null when not sent, so the other Product dropdowns are unaffected.
         var q = _db.Products.AsNoTracking()
             .Where(p => query.SearchTerm == "" || p.Name.Contains(query.SearchTerm))
+            .Where(p => !maxPrice.HasValue || p.Price <= maxPrice.Value)
             .OrderBy(p => p.Name)
             .Select(p => new Select2ListItem { Id = p.Id.ToString(), Text = p.Name });
 

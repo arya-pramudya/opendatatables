@@ -36,6 +36,18 @@ public sealed class DataTableLocalization
     /// <summary>Body of the "session expired" dialog on HTTP 401.</summary>
     public string SessionExpiredMessage { get; set; } = "Your session has expired. Please log in again.";
 
+    /// <summary>Title of the unsaved-edits dialog shown when changing page mid-edit.</summary>
+    public string UnsavedChangesTitle { get; set; } = "Unsaved changes";
+
+    /// <summary>Body of the unsaved-edits dialog shown when changing page mid-edit.</summary>
+    public string UnsavedChangesMessage { get; set; } = "You have unsaved changes on this page. Discard them and continue?";
+
+    /// <summary>Confirm (discard) button label in the unsaved-edits dialog.</summary>
+    public string DiscardChanges { get; set; } = "Discard";
+
+    /// <summary>Cancel (keep editing) button label in the unsaved-edits dialog.</summary>
+    public string KeepEditing { get; set; } = "Keep editing";
+
     /// <summary>English defaults.</summary>
     public static DataTableLocalization English => new();
 
@@ -52,5 +64,9 @@ public sealed class DataTableLocalization
         FilterTitle = "Filter Data",
         SessionExpiredTitle = "Peringatan",
         SessionExpiredMessage = "Session anda telah habis! Silahkan login ulang.",
+        UnsavedChangesTitle = "Perubahan belum disimpan",
+        UnsavedChangesMessage = "Ada perubahan yang belum disimpan di halaman ini. Buang dan lanjutkan?",
+        DiscardChanges = "Buang",
+        KeepEditing = "Lanjut mengubah",
     };
 }

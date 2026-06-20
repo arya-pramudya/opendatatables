@@ -23,7 +23,10 @@
   var OpenSelect2 = (window.OpenSelect2 = window.OpenSelect2 || {});
 
   // --- Host configuration (the <os2-scripts/> tag helper overwrites this; defaults below). ---
+  // Deep-merge (like opendatatables-core) so a host that sets only part of `locale` keeps the other
+  // default locale keys instead of dropping them.
   OpenSelect2.config = $.extend(
+    true,
     {
       loginUrl: null,
       ajaxDelayMs: 250,
@@ -52,6 +55,15 @@
     os2Registry[id] = $.extend({}, os2Registry[id], handlers);
   };
 
+  // True only for plain {} objects — NOT Date/RegExp/jQuery/DOM nodes/class instances. The deep merge
+  // recurses only into plain objects and REPLACES everything else by reference, so a special value such
+  // as a jQuery dropdownParent passed through the escape hatch is assigned, not recursed-into and lost.
+  function isPlainObject(o) {
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+    var proto = Object.getPrototypeOf(o);
+    return proto === Object.prototype || proto === null;
+  }
+
   // Deep-merge that REPLACES arrays wholesale (jQuery's $.extend(true, …) merges arrays by index, which
   // silently corrupts array-valued select2 options like `data` passed through the escape hatch) and skips
   // prototype-polluting keys (__proto__/constructor/prototype).
@@ -62,8 +74,7 @@
       var val = src[key];
       if (Array.isArray(val)) {
         target[key] = val.slice();
-      } else if (val && typeof val === 'object' &&
-                 target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+      } else if (isPlainObject(val) && isPlainObject(target[key])) {
         mergeOptions(target[key], val);
       } else {
         target[key] = val;
@@ -364,10 +375,14 @@
     // mergeOptions replaces arrays wholesale. The built-in ajax.transport (handles 401/errors) is
     // re-asserted after BOTH the merge and a beforeInit replacement, so neither can drop it; host ajax
     // sub-keys (url, delay, …) still merge through. A non-object `ajax` is normalized (never throws).
+    var _url = ajaxSettings.ajax.url;
     var _transport = ajaxSettings.ajax.transport;
     function protectTransport(s) {
       if (!s.ajax || typeof s.ajax !== 'object' || Array.isArray(s.ajax)) s.ajax = {};
       s.ajax.transport = _transport;
+      // url stays host-overridable but must never be LOST (a beforeInit returning a fresh object without
+      // ajax.url would otherwise break the remote source). Restore only when absent.
+      if (s.ajax.url == null) s.ajax.url = _url;
       return s;
     }
 

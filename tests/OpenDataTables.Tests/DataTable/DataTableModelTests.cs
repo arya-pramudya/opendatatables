@@ -1,3 +1,4 @@
+using System.Linq;
 using OpenDataTables.AspNetCore.Models;
 using Xunit;
 
@@ -6,6 +7,36 @@ namespace OpenDataTables.Tests.DataTable;
 /// <summary>Tests for the model-level helpers added for issues #13 (Validate) and #14 (NormalizeSort).</summary>
 public class DataTableModelTests
 {
+    // ----- UnsavedEditBehavior (page change with unsaved inline edits) -----
+
+    [Fact]
+    public void UnsavedEditBehavior_defaults_to_Warn()
+    {
+        // Edits must never be lost silently by default — the page-change guard warns unless opted out.
+        Assert.Equal(UnsavedEditBehavior.Warn, new DataTableViewModel { AjaxUrl = "/data" }.UnsavedEditBehavior);
+    }
+
+    // ----- FilterCard: a hidden column can still be filtered -----
+
+    [Fact]
+    public void GetFilterableColumns_includes_hidden_columns_that_have_a_filter()
+    {
+        var model = new FilterCardViewModel
+        {
+            Columns =
+            {
+                new() { Data = "id",   Title = "Id",   IsVisible = false, Filter = DataTableFilterType.Text }, // hidden but filterable
+                new() { Data = "name", Title = "Name", IsVisible = true,  Filter = DataTableFilterType.Text },
+                new() { Data = "note", Title = "Note", IsVisible = true,  Filter = DataTableFilterType.None }, // no filter
+            }
+        };
+
+        var cols = model.GetFilterableColumns();
+
+        // Grid visibility is irrelevant — the hidden "id" gets a filter; the filter-less "note" does not.
+        Assert.Equal(new[] { "id", "name" }, cols.Select(c => c.Data));
+    }
+
     // ----- NormalizeSort (issue #14: one canonical sort representation) -----
 
     [Fact]

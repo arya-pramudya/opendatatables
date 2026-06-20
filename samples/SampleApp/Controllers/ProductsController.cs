@@ -38,6 +38,30 @@ public class ProductsController : Controller
         return Json(result);
     }
 
+    /// <summary>
+    /// Parent endpoint for the nested ("table inside a table") demo: one row per category. Each row
+    /// expands to its products, fetched by the child grid from <see cref="GetData"/> with
+    /// <c>category = row.id</c>.
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> GetCategories(DataTableQueryViewModel query, string? name)
+    {
+        var rows =
+            from c in _db.Categories.AsNoTracking()
+            where string.IsNullOrEmpty(name) || c.Name.Contains(name)
+            select new CategoryRow
+            {
+                Id = c.Id,
+                Name = c.Name,
+                ProductCount = _db.Products.Count(p => p.CategoryId == c.Id),
+                AvgPrice = _db.Products.Where(p => p.CategoryId == c.Id).Average(p => (decimal?)p.Price) ?? 0m
+            };
+
+        var total = await _db.Categories.CountAsync();
+        var result = await rows.ToDataTableResponseAsync(query, total, defaultSortColumn: "name");
+        return Json(result);
+    }
+
     /// <summary>Editable-table save endpoint. Accepts the JSON payload posted by the editable runtime.</summary>
     [HttpPost]
     public IActionResult SaveData([FromBody] List<Dictionary<string, object>>? rows)

@@ -66,7 +66,11 @@ public class OdtScriptsTagHelper : TagHelper
                 actions = loc.Actions,
                 filterTitle = loc.FilterTitle,
                 sessionExpiredTitle = loc.SessionExpiredTitle,
-                sessionExpiredMessage = loc.SessionExpiredMessage
+                sessionExpiredMessage = loc.SessionExpiredMessage,
+                unsavedChangesTitle = loc.UnsavedChangesTitle,
+                unsavedChangesMessage = loc.UnsavedChangesMessage,
+                discardChanges = loc.DiscardChanges,
+                keepEditing = loc.KeepEditing
             }
         };
 

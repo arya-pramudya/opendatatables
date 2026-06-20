@@ -48,7 +48,15 @@
   function safeWindowFn(name) {
     if (!name || typeof name !== 'string' || !IDENTIFIER_RE.test(name)) return null;
     if (UNSAFE_GLOBAL_RE.test(name)) return null;
-    return typeof window[name] === 'function' ? window[name] : null;
+    // Only resolve OWN globals — ignore inherited Object.prototype members (constructor, toString,
+    // valueOf, hasOwnProperty, …), which every identifier would otherwise match via window[name].
+    if (!Object.prototype.hasOwnProperty.call(window, name)) return null;
+    var fn = window[name];
+    if (typeof fn !== 'function') return null;
+    // Reject native built-ins (Date, String, Number, Array, parseInt, …): a formatter/handler must be
+    // host-defined. Built-ins stringify to "{ [native code] }"; host functions carry a real body.
+    if (/\{\s*\[native code\]\s*\}/.test(Function.prototype.toString.call(fn))) return null;
+    return fn;
   }
 
   // Last-resort lookup of a row-button handler by name on window, for hosts not using OpenDataTables.on.
@@ -187,25 +195,31 @@
     var colIdx = order.column != null ? order.column : 0;
     var col = (d.columns && d.columns[colIdx]) || {};
 
-    // B5: send the full sort list; keep the scalar fields in sync with order[0] for back-compat.
-    var sortOrders = [];
-    if (Array.isArray(d.order)) {
-      d.order.forEach(function (o) {
-        var c = (d.columns && d.columns[o.column]) || {};
-        var colName = c.data || c.name || '';
-        if (colName) sortOrders.push({ Column: colName, Direction: o.dir || 'asc' });
-      });
-    }
-
     var mapped = {
       Draw: String(d.draw),
       Start: d.start,
       Length: d.length,
       SortColumnIndex: colIdx,
       SortColumnName: col.data || col.name || '',
-      SortDirection: order.dir || 'asc',
-      SortOrders: sortOrders
+      SortDirection: order.dir || 'asc'
     };
+
+    // B5: emit the full multi-column sort list as FLAT, dot-notation form keys
+    // (SortOrders[0].Column=…, SortOrders[0].Direction=…). A nested array/object would jQuery-serialize
+    // as SortOrders[0][Column], which ASP.NET Core form binding does NOT map to List<SortDescriptor> —
+    // so every secondary (ThenBy) sort would be silently dropped on the wire. The scalar SortColumnName/
+    // SortDirection above stay in sync with order[0] for back-compat.
+    if (Array.isArray(d.order)) {
+      var sortIdx = 0;
+      d.order.forEach(function (o) {
+        var c = (d.columns && d.columns[o.column]) || {};
+        var colName = c.data || c.name || '';
+        if (!colName) return;
+        mapped['SortOrders[' + sortIdx + '].Column'] = colName;
+        mapped['SortOrders[' + sortIdx + '].Direction'] = o.dir || 'asc';
+        sortIdx++;
+      });
+    }
 
     DataTable.Filters.getFilterData(tableId, mapped);
 
@@ -428,17 +442,17 @@
 
     $(document)
       .off('click' + ns)
-      .on('click' + ns, '#' + tableId + '-edit-mode-btn', function () { reg.editing = true; toggleEditButtons(tableId, true, saveMode); api.draw(false); })
-      .on('click' + ns, '#' + tableId + '-cancel-btn', function () { reg.editing = false; toggleEditButtons(tableId, false, saveMode); api.draw(false); })
+      .on('click' + ns, '#' + tableId + '-edit-mode-btn', function () { reg.editing = true; reg.dirty = false; toggleEditButtons(tableId, true, saveMode); api.draw(false); })
+      .on('click' + ns, '#' + tableId + '-cancel-btn', function () { reg.editing = false; reg.dirty = false; toggleEditButtons(tableId, false, saveMode); api.draw(false); })
       .on('click' + ns, '#' + tableId + '-save-btn', function () {
         var payload = collectPayload(tableId);
-        if (saveMode === 'custom') { call(tableId, 'onSave', [payload]); return; }
+        if (saveMode === 'custom') { reg.dirty = false; call(tableId, 'onSave', [payload]); return; }
         postSave(config, payload)
           .done(function (resp) {
             var parsed = util.parseApiResponse ? util.parseApiResponse(resp) : { isSuccess: true };
             if (parsed.isSuccess === false) { util.notify('error', parsed.message || 'Save failed'); return; }
             util.notify('success', parsed.message || 'Saved');
-            reg.editing = false; toggleEditButtons(tableId, false, saveMode); api.ajax.reload();
+            reg.editing = false; reg.dirty = false; toggleEditButtons(tableId, false, saveMode); api.ajax.reload();
           })
           .fail(function (xhr, status) { util.handleAjaxError(xhr, status); });
       });
@@ -452,9 +466,80 @@
           .done(function () { util.notify('success', 'Saved'); })
           .fail(function (xhr, status) { util.handleAjaxError(xhr, status); });
       });
+    } else {
+      // Manual/Custom accumulate edits in the DOM until saved — guard against losing them on a page change.
+      wireEditGuard(tableId, config, api, saveMode);
     }
 
     toggleEditButtons(tableId, reg.editing, saveMode);
+  }
+
+  // Persist the current page's edits without leaving edit mode (used by the unsaved-edit page-change guard).
+  // Manual posts to the save endpoint; Custom delegates to the host onSave. Auto never reaches here.
+  function saveCurrentEdits(tableId, config, saveMode) {
+    var reg = registry[tableId];
+    var payload = collectPayload(tableId);
+    if (reg) reg.dirty = false;
+    if (saveMode === 'custom') { call(tableId, 'onSave', [payload]); return; }
+    postSave(config, payload)
+      .done(function (resp) {
+        var parsed = util.parseApiResponse ? util.parseApiResponse(resp) : { isSuccess: true };
+        if (parsed.isSuccess === false) { util.notify('error', parsed.message || 'Save failed'); return; }
+        util.notify('success', parsed.message || 'Saved');
+      })
+      .fail(function (xhr, status) { util.handleAjaxError(xhr, status); });
+  }
+
+  // Guards page navigation while the current page has unsaved inline edits (Manual/Custom). Behavior comes
+  // from config.unsavedEditBehavior: 'autosave' persists the edits then lets navigation proceed; 'warn'
+  // blocks the pager click and asks (on "discard" we clear the flag and re-issue the click so DataTables
+  // handles it natively); 'none' disables the guard. The listener is capture-phase on document (so it runs
+  // before DataTables' own bubble handler) and matched to this table's wrapper, because the pagination DOM
+  // is rebuilt on every draw.
+  function wireEditGuard(tableId, config, api, saveMode) {
+    var reg = registry[tableId];
+    var mode = (config.unsavedEditBehavior || 'warn').toString().toLowerCase();
+
+    // Mark unsaved edits whenever an editor value changes while editing.
+    $(document)
+      .off('input.odtdirty_' + tableId + ' change.odtdirty_' + tableId)
+      .on('input.odtdirty_' + tableId + ' change.odtdirty_' + tableId, '#' + tableId + ' [data-odt-edit]', function () {
+        if (reg.editing) reg.dirty = true;
+      });
+
+    if (mode === 'none') return;
+
+    var wrapperSel = '#' + tableId + '_wrapper';
+    if (reg._editGuardHandler) document.removeEventListener('click', reg._editGuardHandler, true);
+    var handler = function (e) {
+      if (!reg.editing || !reg.dirty) return;
+      var target = e.target;
+      if (!target || !target.closest) return;
+      var link = target.closest(wrapperSel + ' .paginate_button, ' + wrapperSel + ' .page-link');
+      if (!link) return;
+      // Ignore no-op clicks on the active/disabled pager buttons (current page, ellipsis, edge arrows).
+      var item = link.closest('.page-item') || link;
+      if (item.classList.contains('disabled') || item.classList.contains('active') ||
+          link.classList.contains('disabled') || link.classList.contains('current')) return;
+
+      if (mode === 'autosave') { saveCurrentEdits(tableId, config, saveMode); return; }
+
+      // warn: block the navigation, ask, and re-issue the same click on "discard".
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var loc = (ODT.config && ODT.config.locale) || {};
+      util.confirm({
+        title: loc.unsavedChangesTitle || 'Unsaved changes',
+        text: loc.unsavedChangesMessage || 'You have unsaved changes on this page. Discard them and continue?',
+        confirmText: loc.discardChanges || 'Discard',
+        cancelText: loc.keepEditing || 'Keep editing',
+        icon: 'warning'
+      }).then(function (discard) {
+        if (discard) { reg.dirty = false; link.click(); }
+      });
+    };
+    document.addEventListener('click', handler, true);
+    reg._editGuardHandler = handler;
   }
 
   // ----- error ----------------------------------------------------------------
@@ -518,12 +603,17 @@
     // prototype-pollution-safe. The structural ajax.data (DataTableQueryViewModel mapping) and ajax.error
     // are re-asserted after BOTH the merge and a beforeInit replacement, so neither can drop them; host
     // ajax sub-keys (url, headers, …) still merge through. A non-object `ajax` is normalized (never throws).
+    var builtinAjaxUrl = options.ajax.url;
     var builtinAjaxData = options.ajax.data;
     var builtinAjaxError = options.ajax.error;
     function protectAjax(opts) {
       if (!opts.ajax || typeof opts.ajax !== 'object' || Array.isArray(opts.ajax)) opts.ajax = {};
+      // data/error are structural (the DataTableQueryViewModel mapper + 401 handler) — always re-assert.
       opts.ajax.data = builtinAjaxData;
       opts.ajax.error = builtinAjaxError;
+      // url stays host-overridable, but must never be LOST: a beforeInit that returns a fresh object
+      // without ajax.url would otherwise make DataTables POST to the page URL. Restore only when absent.
+      if (opts.ajax.url == null) opts.ajax.url = builtinAjaxUrl;
       return opts;
     }
 

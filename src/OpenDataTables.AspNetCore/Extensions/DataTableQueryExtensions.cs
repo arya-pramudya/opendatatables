@@ -193,19 +193,17 @@ public static class DataTableQueryExtensions
             usingDefaultSort = true;
         }
 
-        var isInitialDraw = !int.TryParse(query.Draw, out var drawNum) || drawNum <= 1;
         // Prefer SortOrders[0].Direction for the same reason as the column name above.
         var rawDir = primary != null && !string.IsNullOrWhiteSpace(primary.Direction)
             ? primary.Direction
             : (query.SortDirection ?? string.Empty);
         var sortDir = rawDir.Trim();
 
+        // Apply the configured default direction only when we are actually falling back to the default
+        // column, or when the request carried no direction at all. An explicit direction on the default
+        // column (e.g. a stateSave-restored or pre-seeded descending sort) is the user's choice and must
+        // be honored — do not rewrite it to defaultSortDirection just because it is the first draw.
         if (usingDefaultSort && !string.IsNullOrWhiteSpace(defaultSortDirection))
-            sortDir = defaultSortDirection.Trim();
-        else if (isInitialDraw
-            && !string.IsNullOrWhiteSpace(defaultSortDirection)
-            && !string.IsNullOrWhiteSpace(defaultSortColumn)
-            && string.Equals(sortName, defaultSortColumn, StringComparison.OrdinalIgnoreCase))
             sortDir = defaultSortDirection.Trim();
         else if (string.IsNullOrWhiteSpace(sortDir) && !string.IsNullOrWhiteSpace(defaultSortDirection))
             sortDir = defaultSortDirection.Trim();

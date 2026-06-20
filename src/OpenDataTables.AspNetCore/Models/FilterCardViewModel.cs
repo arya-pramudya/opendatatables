@@ -24,7 +24,11 @@ public class FilterCardViewModel
     /// <summary>Custom parameters included in AJAX requests (outside filter fields).</summary>
     public Dictionary<string, string>? CustomParameters { get; set; }
 
-    /// <summary>The visible, filterable columns.</summary>
-    public List<DataTableColumnViewModel> GetVisibleColumns() =>
-        Columns.Where(c => c.IsVisible && c.Filter != DataTableFilterType.None).ToList();
+    /// <summary>
+    /// The columns that get a filter input. A column only needs a <see cref="DataTableColumnViewModel.Filter"/>
+    /// type — grid visibility is irrelevant, so a column hidden in the table (<c>IsVisible = false</c>) can
+    /// still be filtered (e.g. a hidden foreign-key column).
+    /// </summary>
+    public List<DataTableColumnViewModel> GetFilterableColumns() =>
+        Columns.Where(c => c.Filter != DataTableFilterType.None).ToList();
 }
