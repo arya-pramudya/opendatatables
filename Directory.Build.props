@@ -13,8 +13,8 @@
     <Authors>Arya Pramudya</Authors>
     <Company>Arya Pramudya</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/aryapramudya/opendatatables</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/aryapramudya/opendatatables</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/arya-pramudya/opendatatables</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/arya-pramudya/opendatatables</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
